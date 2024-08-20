@@ -1,0 +1,12 @@
+ARG BASE_IMAGE="pytorch/pytorch"
+FROM $BASE_IMAGE
+WORKDIR /usr/src/app/
+ENV TZ=Europe/London
+
+COPY requirements.txt ./
+RUN python -m pip install -r requirements.txt
+
+COPY *.py ./
+COPY env ./env
+COPY config.json ./
+ENTRYPOINT ["python", "main.py"]

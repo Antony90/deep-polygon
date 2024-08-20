@@ -1,0 +1,5 @@
+__pycache__
+models
+
+# upload to compute machine ssh 
+upload.sh

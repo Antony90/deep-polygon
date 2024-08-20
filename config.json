@@ -1,0 +1,10 @@
+{
+  "batch_size": 32,
+  "memory_size": 500000,
+  "gamma": 0.99,
+  "learning_rate": 0.0001,
+  "eps_decay_steps": 8000000,
+  "update_target_rate": 10000,
+  "epsilon_min": 0.02
+  
+}
