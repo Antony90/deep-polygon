@@ -1,0 +1,13 @@
+services:
+  playground:
+    container_name: playground
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    volumes:
+      - models:/app/models
+    env_file:
+      - .env
+
+volumes:
+  models:

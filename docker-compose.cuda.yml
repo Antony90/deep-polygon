@@ -1,0 +1,15 @@
+services:
+  playground:
+    build:
+      args:
+        # Latest stable CUDA accelerated pytorch
+        BASE_IMAGE: 'pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime'
+    
+    # Expose the first NVIDIA GPU
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: "nvidia"
+              count: 1
+              capabilities: [gpu]

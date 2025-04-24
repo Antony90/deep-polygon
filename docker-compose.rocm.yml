@@ -1,0 +1,10 @@
+services:
+  playground:
+    build:
+      args:
+        BASE_IMAGE: 'rocm/pytorch'
+    devices:
+      - "/dev/kfd"
+      - "/dev/dri"
+    environment:
+      - HSA_OVERRIDE_GFX_VERSION=10.3.0
