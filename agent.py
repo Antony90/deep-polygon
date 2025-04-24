@@ -55,12 +55,12 @@ class Agent:
         self.device = device
         if model_path is None:
             if not os.path.exists(self.model_path):
-                print("Created `./models` directory")
+                print(f"Created default model directory at: {self.model_path}")
                 os.mkdir("./models")
         else:
             self.model_path = model_path
             if not os.path.exists(self.model_path):
-                raise Exception(f"Model directory `{self.model_path}` does not exist")
+                raise Exception(f"Supplied model directory `{self.model_path}` does not exist.")
 
         self.policy_net = policy_net.to(device)
         self.target_net = target_net.to(device)

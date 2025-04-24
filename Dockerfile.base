@@ -1,6 +1,6 @@
 ARG BASE_IMAGE="pytorch/pytorch"
 FROM $BASE_IMAGE
-WORKDIR /usr/src/app/
+WORKDIR /app/
 ENV TZ=Europe/London
 
 COPY requirements.txt ./
