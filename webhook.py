@@ -16,23 +16,16 @@ class Webhook:
     def __init__(self, id: str, token: str, session_name: str, init_msg: str) -> None:
         self.url = f"https://discord.com/api/webhooks/{id}/{token}"
         self.session_name = session_name or str(datetime.datetime.now().date())
-        if os.environ.get('TEST_THREAD_ID'):
-            self.thread_id = os.environ['TEST_THREAD_ID']
-            msg = "**" + self.session_name + "**\n" + init_msg
-            requests.post(
-                f"{self.url}?thread_id={self.thread_id}", 
-                {"content": msg}
-            ).raise_for_status()
-        else:
-            response = requests.post(
-                f'{self.url}?wait=true',
-                data={
-                    "content": init_msg,
-                    "thread_name": self.session_name
-                }
-            )
-            response.raise_for_status()
-            self.thread_id = json.loads(response.text)['channel_id']
+
+        response = requests.post(
+            f'{self.url}?wait=true',
+            data={
+                "content": init_msg,
+                "thread_name": self.session_name
+            }
+        )
+        response.raise_for_status()
+        self.thread_id = json.loads(response.text)['channel_id']
 
         plt.style.use("dark_background")
 

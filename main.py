@@ -425,6 +425,9 @@ def main(args):
         else:
             if args.session_name is None:
                 raise Exception("A session name must be specified with --session_name or -s.")
+            if not os.environ.get("WEBHOOK_ID") or not os.environ.get(["WEBHOOK_TOKEN"]):
+                raise Exception("Webhook ID or Token not specified. To run the project without webhook logging, use the --no-webhook option.")
+            
             webhook = Webhook(
                 id=os.environ["WEBHOOK_ID"],
                 token=os.environ["WEBHOOK_TOKEN"],

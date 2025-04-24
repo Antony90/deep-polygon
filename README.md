@@ -134,6 +134,16 @@ This simulation can be run to train AIs.
 - Docker
 - A GPU which can be exposed using `--gpus` with `docker`. Read more [here](https://docs.docker.com/engine/containers/resource_constraints/#gpu).
 
+### Setup
+Create a `.env` file in the project root using the contents of [`.env.example`](./.env.example).
+The training telemetry and logging is displayed by a discord webhook, however this feature is optional and can be disabled using the `--no-webhook` CLI option.
+See [this official blog post](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks) for how to setup and use a webhook.
+
+- Example `.env` file:
+  ```env
+  WEBHOOK_ID=<discord-webhook-id>
+  WEBHOOK_TOKEN=<discord-webhook-token>
+  ```
 
 ### Usage
 
