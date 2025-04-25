@@ -5,9 +5,6 @@ services:
       context: .
       dockerfile: Dockerfile.base
     volumes:
-      - models:/app/models
+      - ./models:/app/models
     env_file:
       - .env
-
-volumes:
-  models:
