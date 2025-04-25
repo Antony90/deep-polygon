@@ -425,7 +425,7 @@ def main(args):
         else:
             if args.session_name is None:
                 raise Exception("A session name must be specified with --session_name or -s.")
-            if not os.environ.get("WEBHOOK_ID") or not os.environ.get(["WEBHOOK_TOKEN"]):
+            if not os.environ.get("WEBHOOK_ID") or not os.environ.get("WEBHOOK_TOKEN"):
                 raise Exception("Webhook ID or Token not specified. To run the project without webhook logging, use the --no-webhook option.")
             
             webhook = Webhook(
@@ -460,7 +460,8 @@ def main(args):
     raise Exception(f"Unknown subcommand `{args.subcommand}`")
 
 if __name__ == '__main__':
-    print(colorama.ansi.clear_screen(), end="")
+    # print(colorama.ansi.clear_screen(), end="")
+    # print(colorama.Cursor.POS(1, 1), end="")  # Move to top left of terminal
     print(colorama.Fore.GREEN, end="")
     art.tprint("Deep Polygon", font="tarty4")
     print(colorama.Fore.RESET)
@@ -468,32 +469,33 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     
+    parser.description = "A multi-agent deep reinforcement learning experiment - designing collaborative and competitive agents for grid based arena environments like splix.io, paper.io and tileman.io."
+    
     subcommand = parser.add_subparsers(dest="subcommand", title="Commands")
     train_parser = subcommand.add_parser("train", help="Training with a fixed number of agents. Models saved in ./models/")
     train_parser.add_argument("--no-webhook", help="Disable all webhook initializing and posting", action="store_true", default=False)
-    train_parser.add_argument("--model_name", help="Path to model in in ./models directory", default=None)
-    train_parser.add_argument("-s", "--session-name", help="Session name for webhook to post")
-    train_parser.add_argument("-n", "--num-bots", help="Number of bots to simulate, default: 1", type=int, default=1)
-    train_parser.add_argument("-m", "--map-size", help="Size of a square map, default: 200", type=int, default=200)
-    train_parser.add_argument("--rand", help="Random action chance", type=float)
+    train_parser.add_argument("--model-name", "-M", help="Path to a trained model in in ./models directory. Starts training with this model.", default=None)
+    train_parser.add_argument("--session-name", "-s", help="Session name for webhook to post", required=True)
+    train_parser.add_argument("--num-bots", "-n", help="Number of bots to simulate", type=int, default=1)
+    train_parser.add_argument("--map-size", "-m", help="Size of a square map", type=int, default=200)
+    train_parser.add_argument("--rand", help="Initial random action chance/epsilon value. Use to resume training or when starting with a competent trained model.", type=float)
 
     eval_parser = subcommand.add_parser("eval", help="Runs trained model in eval mode, no training only action predictions.")
-    eval_parser.add_argument("model_name", help="Path to model in in ./models directory")
-    eval_parser.add_argument("-m", "--map-size", help="Size of a square map, default: 120", type=int, default=120)
+    eval_parser.add_argument("--model_name", help="Path to model in in ./models directory")
+    eval_parser.add_argument("--map-size", "-m", help="Size of a square map, default: 120", type=int, default=120)
 
     user_parser = subcommand.add_parser("user", help="User input environment test. For checking your reward function or fill algorithm.")
 
     online_parser = subcommand.add_parser("online", help="Runs a websocket server which expects the state in JSON, responds with an action from the loaded model.")
-    online_parser.add_argument("model_name", help="A cpu model, see `convert` command.")
+    online_parser.add_argument("--model_name", help="A cpu model, see `convert` command.")
 
     convert_parser = subcommand.add_parser("convert", 
         help="Converts a trained model with 2 NNs, 1 optimizer on cuda device, to a single NN on cpu device for inference."
              "Requires a cuda enabled device.")
-    convert_parser.add_argument("model_name", help="Trained model to convert", type=str)
+    convert_parser.add_argument("--model_name", help="Trained model to convert", type=str)
 
     args = parser.parse_args()
-    print(colorama.Fore.RED + colorama.Style.BRIGHT + f"Loading [{args.subcommand}]")
-    print(colorama.Fore.RESET, end="")
+
     try:
         main(args)  
     except KeyboardInterrupt:
