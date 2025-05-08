@@ -20,6 +20,8 @@ class Player(ABC):
         self.dead = False
         self.kills = 0
         self.area = 0
+        # A rectangle representing an optimistic area covered by the player
+        # This is updated to possibly become larger when the player captures land
         self.area_bounds = (spawn_pos[0], spawn_pos[0], spawn_pos[1], spawn_pos[1])
 
         self.time_since_land = 0
@@ -30,7 +32,80 @@ class Player(ABC):
         self.area = np.count_nonzero(self.game.grid[minY:maxY+1, minX:maxX+1] == self.id)
         return self.area
 
-    def finish_trail(self) -> None:
+    def finish_trail(self) -> int:
+        grid = self.game.grid
+
+        # 1. Update area bounds with trail
+        (min_x, min_y, max_x, max_y) = self.area_bounds
+        # Head pos is not part of trail list
+        # trail_with_head = self.trail + [self.pos]
+
+        for i in range(len(self.trail)):
+            point1 = self.trail[i]
+            point2 = self.trail[i + 1] if i < len(self.trail) - 1 else self.pos
+
+            if point1[0] > point2[0] or point1[1] > point2[1]:
+                point1, point2 = point2, point1
+            self.game.grid.set_area(self.id, *point1, *point2)
+
+            if (point1[0] < min_x):
+                min_x = point1[0]
+            if (point2[0] > max_x):
+                max_x = point2[0]
+            if (point1[1] < min_y):
+                min_y = point1[1]
+            if (point2[1] > max_y):
+                max_y = point2[1]
+
+        self.trail.clear()
+        self.area_bounds = (min_x, min_y, max_x, max_y)
+
+        # 2. Prepare a mask for the area to fill
+        # Within bounds and not owned by the player
+        area = grid[min_y:max_y+1, min_x:max_x+1]
+        fill_mask = (area != self.id)
+
+        # 3. Flood fill from the border, treating owned cells (including the trail) as barriers
+        h, w = fill_mask.shape
+        visited = np.zeros_like(fill_mask, dtype=bool)
+        q = deque()
+
+        # Enqueue all border cells that are not owned by the player
+        for x in range(w):
+            if fill_mask[0, x]:
+                q.append((0, x))
+                visited[0, x] = True
+            if fill_mask[h-1, x]:
+                q.append((h-1, x))
+                visited[h-1, x] = True
+
+        for y in range(h):
+            if fill_mask[y, 0]:
+                q.append((y, 0))  
+                visited[y, 0] = True
+            if fill_mask[y, w-1]:
+                q.append((y, w-1))
+                visited[y, w-1] = True
+
+        # BFS to flood fill all cells starting from the border
+        # The "loop" the player's trail created will not be filled
+        while q:
+            y, x = q.popleft()
+            for dy, dx in [(-1,0),(1,0),(0,-1),(0,1)]:
+                ny, nx = y+dy, x+dx
+                if 0 <= ny < h and 0 <= nx < w and fill_mask[ny, nx] and not visited[ny, nx]:
+                    visited[ny, nx] = True
+                    q.append((ny, nx))
+
+        # 4. All unvisited cells in fill_mask are therefore capturable
+        to_fill = fill_mask & (~visited)
+        captured = np.count_nonzero(to_fill)
+        area[to_fill] = self.id
+
+        return captured
+
+
+    def finish_trail_old(self) -> None:
         (minX, minY, maxX, maxY) = self.area_bounds
         parts = len(self.trail)
         for i in range(parts):
@@ -60,6 +135,7 @@ class Player(ABC):
 
         # heads and trail starts of enemies prevent fill
         for enemy in self.game.players:
+            # TODO: cull far away players
             if enemy.dead or enemy == self:
                 continue
             (vy, vx) = enemy.pos

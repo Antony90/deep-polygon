@@ -10,7 +10,7 @@ class Builder(Player):
     """Emphasise building or killing"""
     max_time_since_kill = 40 # max actions without killing while an enemy is on screen and player is in kill zone
     max_pause = 5            # max consecutive pauses before death
-    max_trail_len = 60       # max trail length before death
+    max_trail_len = 80       # max trail length before death
     max_dist_from_enemy = 5  # max manhattan distance between closest enemy (if any enemy is in fov)], will take penalty when exceeded
     def __init__(self, game, player_id: int, spawn_pos: list[int], spawn_dir: Direction):
         super().__init__(game, player_id, spawn_pos, spawn_dir)
@@ -164,20 +164,27 @@ class Builder(Player):
     def manhattan_distance(pos1, pos2):
         return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
     
-    def get_reward(self, num_killed: int, area_change: float, reversed: bool, action: Direction):
+    def get_reward(self, num_killed: int, area_change: float, reversed_direction: bool, action: Direction):
         if self.dead:
             return  -1.0
-        elif reversed:
+        elif reversed_direction: # Trying to reverse while having a trail does nothing, punish
             return -0.5
         else:
             reward = 0
             unset = True
-            if num_killed > 0:
+            if num_killed > 0: # Can kill multiple enemies in 1 step
                 unset = False
-                reward += -1.0 # 4.0
+                reward += 1 # 4.0
             if area_change > 0:
                 unset = False
-                reward += min(area_change, 100) / 80
+                # Normalise area of land captured
+                # This makes 100 units of land equivalent to 1 kill
+                reward += area_change/100
+                # reward += min(area_change, 100) / 80
+            if area_change < 0:
+                unset = False
+                # Negative reward for loosing land
+                reward += area_change/80
             # HACK: assert non-zero distance since when initially exit land,
             # prev_dist is non-zero so is wrongly true from previously entering land
             if self.has_trail() and self.trail_start_dist and self.trail_start_dist < self.prev_trail_start_dist:
@@ -187,6 +194,8 @@ class Builder(Player):
             if self.is_enemy_in_fov():
                 unset = False
                 reward += -0.0050
+                # Punish if an enemy is coming closer
+                # However, it is still incentivized to kill them
                 if self.closest_enemy_dist <= self.prev_closest_enemy_dist:
                     reward += -0.00250
                 else:
@@ -207,6 +216,8 @@ class Builder(Player):
             # else:
             #     reward += -0.0005
 
+            # i.e. has not captured land, no kills, no enemies in FOV
+            # It must be stationary in own land. Punish this behaviour
             if unset:
                 return -0.0005
             else:
