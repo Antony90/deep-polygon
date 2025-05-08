@@ -1,0 +1,1 @@
+docker run -it --env-file .env --gpus all -v ~/models:/app/models deep-polygon "$@"

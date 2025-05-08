@@ -17,8 +17,6 @@ from colorama import Fore, Style
 StateType = tuple[np.ndarray, np.ndarray]
 
 class Agent:
-    model_path = "./models"
-
     def __init__(
         self, 
         batch_size: int, 
@@ -33,8 +31,7 @@ class Agent:
         policy_net: nn.Module,
         target_net: nn.Module,
         eval,
-        model_path : Optional[str] = None,
-        load_model : Optional[str] = None
+        load_model: Optional[str] = None
     ):
 
         self.num_actions = num_actions
@@ -53,14 +50,8 @@ class Agent:
         self.replay = replay
 
         self.device = device
-        if model_path is None:
-            if not os.path.exists(self.model_path):
-                print(f"Created default model directory at: {self.model_path}")
-                os.mkdir("./models")
-        else:
-            self.model_path = model_path
-            if not os.path.exists(self.model_path):
-                raise Exception(f"Supplied model directory `{self.model_path}` does not exist.")
+        self.model_path = "./models"
+
 
         self.policy_net = policy_net.to(device)
         self.target_net = target_net.to(device)

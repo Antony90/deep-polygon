@@ -1,0 +1,1 @@
+docker build -f .\Dockerfile.base --build-arg BASE_IMAGE="pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime" -t deep-polygon .
