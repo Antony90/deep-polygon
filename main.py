@@ -65,7 +65,7 @@ class Playground:
         best_reward = -float('inf')
         best_run = None # history of states for episode with best reward
         ep_num = 0
-        mean_freq = 4_000 # save model, calculate a moving avg, in episodes
+        mean_freq = 4_000 # period to calculate a moving avg, in episodes
         
         ep_rewards = [] # rewards for every episode 
         mean_ep_rewards = [] # moving average, window size of `mean_freq`
@@ -80,6 +80,7 @@ class Playground:
         mean_loss = None
 
         save_freq = 500_000 # interval in no. train steps
+        max_ep_len = 1_000 # max no. actions per episode
         
         # job to post webhook with training reports
         scheduler = BackgroundScheduler()
@@ -96,11 +97,12 @@ class Playground:
                     q_vals=q_vals,
                     agent=agent,
                     remaining=remaining,
-                    elapsed=elapsed
+                    elapsed=elapsed,
+                    losses=losses
                 )
 
             interval = {}
-            if agent.eps_decay_steps < 2_000_000:
+            if agent.eps_decay_steps < 5_000_000:
                 interval["minutes"] = 30
             elif agent.eps_decay_steps < 10_000_000:
                 interval["hours"] = 1
@@ -159,6 +161,7 @@ class Playground:
                 agent.replay.store(states[i], action, reward, new_state, done)
                 loss = agent.train()
 
+                # telemetry for plotting graphs
                 losses.append(loss)
                 ep_history[i].append(new_state[0])
                 agent_rewards[i] += reward
@@ -169,6 +172,11 @@ class Playground:
                 if agent.train_steps_completed() % save_freq == 0 and last_mean_ep_reward:
                     agent.save(f"{agent.train_steps_completed():08}_m{last_mean_ep_reward:5.3f}.pt")
 
+                # Cap episode length
+                if len(ep_history[i]) > max_ep_len:
+                    done = True # This isn't passed to the replay buffer / RL algorithm
+
+                # player has died
                 if done:
                     ep_num += 1
                     ep_rewards.append(agent_rewards[i])

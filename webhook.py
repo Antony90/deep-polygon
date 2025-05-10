@@ -6,7 +6,7 @@ import requests
 import requests_toolbelt.multipart.encoder as multipart_encoder
 
 from PIL import Image
-import matplotlib.pyplot as plt1
+import matplotlib.pyplot as plt
 import os
 
 from agent import Agent
@@ -73,6 +73,17 @@ class Webhook:
         plt.clf()
         return img
     
+    @staticmethod
+    def loss_graph(losses):
+        plt.plot(losses, color='red', linewidth=0.5)
+        plt.xlabel('Training Steps since Last Mean')
+        plt.ylabel('Loss')
+        
+        img = BytesIO()
+        plt.savefig(img, format='png', transparent=False)
+        plt.clf()
+        return img
+    
     @classmethod
     def ep_length_graph(cls, ep_lengths, mean_ep_lengths, mean_freq):
         return cls.generic_ep_mean_graph(
@@ -126,7 +137,7 @@ class Webhook:
         return img
     
     def send_replay_gif(self, replay_gif: BytesIO, new_best: int, length: int, rand_chance: float, kills: int, area: int):
-        title = f"**New Best: {new_best:.2f}** ({kills} kills, {area:,} area, {length:,} actions, {rand_chance*100:.2f}% random)"
+        title = f"**New Best: {new_best:.4f}** ({kills} kills, {area:,} area, {length:,} actions, {rand_chance*100:.2f}% random)"
         body = {
             "content": title,
             "attachments": [
@@ -157,7 +168,8 @@ class Webhook:
         remaining: int,
         ep_reward_graph: BytesIO,
         ep_length_graph: BytesIO,
-        q_val_graph: BytesIO
+        q_val_graph: BytesIO,
+        loss_graph: BytesIO
     ):
         title = "Status Report"
 
@@ -171,7 +183,8 @@ class Webhook:
         images = [
             {"url": "attachment://reward.png"},
             {"url": "attachment://length.png"},
-            {"url": "attachment://qvals.png"}
+            {"url": "attachment://qvals.png"},
+            {"url": "attachment://loss.png"}
         ]
         # generate duplicate embed with each image as an attachment
         # using the same URL for each embed will let images be combined into the same embed
@@ -198,7 +211,8 @@ class Webhook:
             "payload_json": json.dumps(body),
             "files[0]": ("reward.png", ep_reward_graph, "image/png"),
             "files[1]": ("length.png", ep_length_graph, "image/png"),
-            "files[2]": ("qvals.png", q_val_graph, "image/png")
+            "files[2]": ("qvals.png", q_val_graph, "image/png"),
+            "files[3]": ("loss.png", loss_graph, "image/png")
         })
         
         response = requests.post(
@@ -245,6 +259,7 @@ class Webhook:
         ep_rewards: list[float],
         mean_ep_rewards: list[float],
         ep_lengths: list[int],
+        losses: list[float],
         mean_ep_lengths: list[int],
         q_vals: list[float],
         agent: Agent,
@@ -255,6 +270,7 @@ class Webhook:
         ep_reward_graph = self.reward_graph(ep_rewards, mean_ep_rewards, mean_freq)
         ep_length_graph = self.ep_length_graph(ep_lengths, mean_ep_lengths, mean_freq)
         q_val_graph = self.q_val_graph(q_vals)
+        loss_graph = self.loss_graph(losses)
 
         # post report, close file descriptors
         self.send_report(
@@ -267,7 +283,8 @@ class Webhook:
             remaining=remaining, 
             ep_reward_graph=ep_reward_graph,
             ep_length_graph=ep_length_graph,
-            q_val_graph=q_val_graph
+            q_val_graph=q_val_graph,
+            loss_graph=loss_graph
         )
         ep_reward_graph.close()
         ep_length_graph.close()
