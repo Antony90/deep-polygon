@@ -10,7 +10,7 @@ class Builder(Player):
     """Emphasise building or killing"""
     max_time_since_kill = 40 # max actions without killing while an enemy is on screen and player is in kill zone
     max_pause = 5            # max consecutive pauses before death
-    max_trail_len = 80       # max trail length before death
+    max_trail_len = 60       # max trail length before death
     max_dist_from_enemy = 5  # max manhattan distance between closest enemy (if any enemy is in fov)], will take penalty when exceeded
     def __init__(self, game, player_id: int, spawn_pos: list[int], spawn_dir: Direction):
         super().__init__(game, player_id, spawn_pos, spawn_dir)
@@ -178,7 +178,10 @@ class Builder(Player):
             # 1 for > 80 tiles
             return min(area_change/100, 2)
         elif self.has_trail():
-            return -0.0150
+            return -0.0050
 
+        # no kill, no land capture, must be in land
+        # is punished more than when it has a trail
+        # promotes exploring outside land more than staying inside
         else:
             return -0.0100

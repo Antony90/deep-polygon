@@ -119,12 +119,35 @@ class Game:
 
         player.last_dir = action
         return new_state, reward, done
+    
+    
+    def is_valid_spawn(self, spawn_pos: list[int], min_player_dist=15) -> bool:
+        # Cannot spawn head on enemy land
+        if self.grid.get_block(spawn_pos) != GridValue.EMPTY:
+            return False
+            
+        # Cannot be too close to players
+        # Note: this can cause spawning to be impossible
+        # In small maps with too many players
+        for player in self.players:
+            dist = self.manhattan_distance(player.pos, spawn_pos)
+            if dist <= min_player_dist:
+                return False
+            
+        return True
+            
 
     def spawn_builder(self, index=-1):
         '''Specify `index` to replace a specific agent'''
-        spawn_pos = [systemrandom.randint(5, self.map_size - 6) for i in range(2)]
-        while self.grid.get_block(spawn_pos) != GridValue.EMPTY:
-            spawn_pos = [systemrandom.randint(5, self.map_size - 6) for i in range(2)]
+        generate_spawn_pos = lambda: [systemrandom.randint(5, self.map_size - 6) for _ in range(2)]
+        spawn_pos = generate_spawn_pos()
+
+        num_attempts = 0
+        max_attempts = 5
+        
+        while not self.is_valid_spawn(spawn_pos) and num_attempts < max_attempts:
+            spawn_pos = generate_spawn_pos()
+            num_attempts += 1
             
         # TODO: facing towards middle of map like real splix
         spawn_dir = systemrandom.randint(0, 3)
