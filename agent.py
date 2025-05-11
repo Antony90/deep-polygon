@@ -28,8 +28,8 @@ class Agent:
         device: torch.device,
         replay: ReplayBuffer,
         num_actions: int,
-        policy_net: nn.Module,
-        target_net: nn.Module,
+        policy_net: GridNet,
+        target_net: GridNet,
         eval,
         load_model: Optional[str] = None
     ):
@@ -84,13 +84,14 @@ class Agent:
 
     def summary_msg(self):
         print()
-        print(Style.BRIGHT + Fore.GREEN + "Hyperparameters" + Style.NORMAL)
+        print(Style.NORMAL + Fore.GREEN + "Hyperparameters" + Style.BRIGHT)
         print(f"\tbatch_size = {self.batch_size}")
         print(f"\tlearning_rate = {self.learning_rate}")
         print(f"\tgamma = {self.gamma}")
         print(f"\tmemory_size = {self.replay.size:,}")
         print(f"\ttrain_steps = {self.eps_decay_steps:,}")
         print(f"\ttarget_update = {self.update_target_rate:,}")
+        
 
         total_params = 0
         for parameter in self.policy_net.parameters():
@@ -212,7 +213,7 @@ class Agent:
             return idx.item(), float(pred[idx])
 
     def train(self):
-        if self.replay.cntr < self.batch_size:
+        if self.replay.cntr < self.batch_size and self.replay.percent_full() < 0.1:
             return float('inf')
         state, action, reward, new_state, done = self.replay.sample(self.batch_size, self.device)
 
@@ -251,7 +252,8 @@ class Agent:
         if self.train_cntr % self.update_target_rate == 0:
             self.update_target_network()
 
-        return loss.item()
+        return 0
+        # return loss.item()
 
     def train_steps_completed(self):
         """No. times `self.train()` has been called."""

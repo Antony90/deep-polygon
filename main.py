@@ -65,7 +65,7 @@ class Playground:
         best_reward = -float('inf')
         best_run = None # history of states for episode with best reward
         ep_num = 0
-        mean_freq = 4_000 # period to calculate a moving avg, in episodes
+        mean_freq = 1_000 # period to calculate a moving avg, in episodes
         
         ep_rewards = [] # rewards for every episode 
         mean_ep_rewards = [] # moving average, window size of `mean_freq`
@@ -80,7 +80,6 @@ class Playground:
         mean_loss = None
 
         save_freq = 500_000 # interval in no. train steps
-        max_ep_len = 1_000 # max no. actions per episode
         
         # job to post webhook with training reports
         scheduler = BackgroundScheduler()
@@ -170,11 +169,7 @@ class Playground:
                     next_state.put((new_state[0], new_state[1], reward, agent_rewards[i], done))
 
                 if agent.train_steps_completed() % save_freq == 0 and last_mean_ep_reward:
-                    agent.save(f"{agent.train_steps_completed():08}_m{last_mean_ep_reward:5.3f}.pt")
-
-                # Cap episode length
-                if len(ep_history[i]) > max_ep_len:
-                    done = True # This isn't passed to the replay buffer / RL algorithm
+                    agent.save(f"t{agent.train_steps_completed():08}_m{last_mean_ep_reward:5.1f}.pt")
 
                 # player has died
                 if done:
@@ -198,8 +193,7 @@ class Playground:
                         last_mean_ep_length = sum(ep_lengths[-mean_freq:]) / mean_freq
                         mean_ep_lengths.append(last_mean_ep_length)
 
-                        mean_loss = sum(losses) / mean_freq
-                        losses.clear()
+                        mean_loss = sum(losses[-mean_freq:]) / mean_freq
                     
 
                     # reset agent
