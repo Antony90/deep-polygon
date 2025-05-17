@@ -10,23 +10,28 @@ import matplotlib.pyplot as plt
 import os
 
 from agent import Agent
-from env.state import State
+from env.state import GridState
+
+from tqdm import tqdm
+
+from train.stats import TrainingStats
 
 class Webhook:
-    def __init__(self, id: str, token: str, session_name: str, init_msg: str) -> None:
+    def __init__(self, id: str, token: str, session_name: str, stats: TrainingStats, progress_bar: tqdm) -> None:
         self.url = f"https://discord.com/api/webhooks/{id}/{token}"
         self.session_name = session_name or str(datetime.datetime.now().date())
 
         response = requests.post(
             f'{self.url}?wait=true',
             data={
-                "content": init_msg,
+                "content": "Training Started",
                 "thread_name": self.session_name
             }
         )
         response.raise_for_status()
         self.thread_id = json.loads(response.text)['channel_id']
-
+        self.stats = stats
+        self.pbar = progress_bar
         plt.style.use("dark_background")
 
     @staticmethod
@@ -39,7 +44,7 @@ class Webhook:
 
     @staticmethod
     def generate_gif(replay_history):
-        frames = [State.to_img(state) for state in replay_history]
+        frames = [GridState.to_img(state) for state in replay_history]
         extra_frames = [frames[-1].copy() for _ in range(10)] # make end state visible longer
         frames = frames + extra_frames
 
@@ -159,7 +164,6 @@ class Webhook:
 
     def send_report(
         self,
-        epsilon: int,
         best_reward: int,
         last_mean: int,
         train_ctr: int,
@@ -197,7 +201,6 @@ class Webhook:
                 "fields": [
                     self.field("Best total reward", "{:.3f}".format(best_reward)),
                     self.field("Last mean reward", "{:.3f}".format(last_mean)),
-                    self.field("Random chance", "{:.2f}%".format(epsilon*100)),
                     time_field,
                     self.field("Training steps (total)", f"{train_ctr} ({num_train_steps})"),
                 ],
@@ -243,42 +246,28 @@ class Webhook:
         self.send_replay_gif(replay_gif, total_reward, length, rand_chance, kills, area)
         replay_gif.close()
 
-    @staticmethod
-    def calc_remaining_elapsed_from_pbar(pbar):
-        # Get time remaining and elapsed from progress bar
-        elapsed = pbar.format_dict['elapsed']
-        rate = pbar.format_dict['rate']
-        remaining = (pbar.total - pbar.n) / rate if rate else 0
-        
-        return int(remaining), int(elapsed)
 
-    def post_report(
-        self,
-        best_reward: float,
-        mean_freq: int,
-        ep_rewards: list[float],
-        mean_ep_rewards: list[float],
-        ep_lengths: list[int],
-        losses: list[float],
-        mean_ep_lengths: list[int],
-        q_vals: list[float],
-        agent: Agent,
-        remaining: int,
-        elapsed: int
-    ):
+    def post_report(self):
+        
         # generate graphs, store in memory as .pngs
-        ep_reward_graph = self.reward_graph(ep_rewards, mean_ep_rewards, mean_freq)
-        ep_length_graph = self.ep_length_graph(ep_lengths, mean_ep_lengths, mean_freq)
-        q_val_graph = self.q_val_graph(q_vals)
-        loss_graph = self.loss_graph(losses)
+        ep_reward_graph = self.reward_graph(self.stats.ep_rewards, self.stats.mean_ep_rewards, self.stats.mean_freq)
+        ep_length_graph = self.ep_length_graph(self.stats.ep_lengths, self.stats.mean_ep_lengths, self.stats.mean_freq)
+        q_val_graph = self.q_val_graph(self.stats.q_vals)
+        loss_graph = self.loss_graph(self.stats.losses)
+        
+        elapsed = self.pbar.format_dict['elapsed']
+        rate = self.pbar.format_dict['rate']
+        remaining = (self.pbar.total - self.pbar.n) / rate if rate else 0
+        
+        remaining = int(remaining)
+        elapsed = int(elapsed)
 
         # post report, close file descriptors
         self.send_report(
-            epsilon=agent.get_eps(),
-            best_reward=best_reward,
-            last_mean=mean_ep_rewards[-1], 
-            train_ctr=agent.train_cntr,
-            num_train_steps=agent.eps_decay_steps, 
+            train_ctr=self.pbar.n,
+            best_reward=self.stats.best_reward,
+            last_mean=self.stats.mean_ep_rewards[-1], 
+            num_train_steps=self.pbar.total, 
             elapsed=elapsed, 
             remaining=remaining, 
             ep_reward_graph=ep_reward_graph,
@@ -286,6 +275,7 @@ class Webhook:
             q_val_graph=q_val_graph,
             loss_graph=loss_graph
         )
+        
         ep_reward_graph.close()
         ep_length_graph.close()
         q_val_graph.close()
