@@ -3,7 +3,6 @@ import json
 import sys
 import os
 import time
-import random
 import art
 import numpy as np
 
@@ -11,15 +10,19 @@ import colorama
 from colorama import Fore, Style
 import torch
 from tqdm import tqdm
-from collections import deque
 from threading import Event, Thread
 from queue import Queue, Empty
 from typing import Callable, Optional
 from apscheduler.schedulers.background import BackgroundScheduler
-import websockets as ws
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
+import uvicorn
 
-from webhook import Webhook
+from env.player.builder import Builder
+from train.manager import AgentPlayerGroup, RenderManager, TrainingManager
+from train.stats import TrainingStats
+from web.server import WebServer
+from web.webhook import Webhook
+from web.websocket import WebsocketHandler
 from constants import STATE_SHAPE, Direction
 from agent import Agent, StateType
 
@@ -43,168 +46,6 @@ class Playground:
     def __init__(self):
         self.envs: list[Game] = []
         self.should_render = False
-
-    def create_env(self, *args, **kwargs):
-        env = Game(*args, **kwargs)
-        self.envs.append(env)
-        return env
-    
-
-    def run_builder_server(self, agent: Agent, webhook: Optional[Webhook], rand_chance: Optional[float], num_builders: int, map_size: int):        
-        if rand_chance:
-            # no. train steps assumed to be done given this epsilon
-            steps_done = agent.set_eps(rand_chance)
-            num_steps = agent.eps_decay_steps - steps_done
-        else:
-            num_steps = agent.eps_decay_steps
-        
-        # progress towards reaching minimum epsilon value (random action chance)
-        pbar = tqdm(total=num_steps, leave=False)
-
-        # logging & counter vars
-        best_reward = -float('inf')
-        best_run = None # history of states for episode with best reward
-        ep_num = 0
-        mean_freq = 1_000 # period to calculate a moving avg, in episodes
-        
-        ep_rewards = [] # rewards for every episode 
-        mean_ep_rewards = [] # moving average, window size of `mean_freq`
-        last_mean_ep_reward = None # last mean episode reward
-        
-        ep_lengths = [] # length of each episode
-        mean_ep_lengths = [] # moving avg mean episode length
-        last_mean_ep_length = None # last mean episode length
-
-        q_vals = [] # q value of policy actions
-        losses = [] # losses since last save interval
-        mean_loss = None
-
-        save_freq = 500_000 # interval in no. train steps
-        
-        # job to post webhook with training reports
-        scheduler = BackgroundScheduler()
-        if webhook:
-            def post_wh():
-                remaining, elapsed = webhook.calc_remaining_elapsed_from_pbar(pbar)
-                webhook.post_report(
-                    best_reward=best_reward,
-                    mean_freq=mean_freq,
-                    ep_rewards=ep_rewards,
-                    mean_ep_rewards=mean_ep_rewards,
-                    ep_lengths=ep_lengths,
-                    mean_ep_lengths=mean_ep_lengths,
-                    q_vals=q_vals,
-                    agent=agent,
-                    remaining=remaining,
-                    elapsed=elapsed,
-                    losses=losses
-                )
-
-            interval = {}
-            if agent.eps_decay_steps < 5_000_000:
-                interval["minutes"] = 30
-            elif agent.eps_decay_steps < 10_000_000:
-                interval["hours"] = 1
-            else:
-                interval["hours"] = 2
-
-            scheduler.add_job(post_wh, 'interval', max_instances=1, **interval)
-
-        # update terminal progress bar
-        def update_pbar():
-            pbar.set_postfix({
-                'eps': "{:.2f}".format(agent.get_eps()), 
-                'maxr': "{:.3f}".format(best_reward), 
-                f'mean_{mean_freq}r': "{:.3f}".format(last_mean_ep_reward) if last_mean_ep_reward is not None else last_mean_ep_reward, 
-                'episode': ep_num, 
-                'replay_mem%': "{:.2f}".format(agent.replay.percent_full()),
-                'loss': mean_loss
-            })
-
-        scheduler.add_job(update_pbar, 'interval', seconds=5, max_instances=1)
-        scheduler.start()
-        
-        env = self.create_env(map_size=map_size)
-
-        # create render thread to empty queue
-        next_state = Queue() # states to render
-        render_flag = Event() # toggled when user presses Enter
-        render_thread = Thread(target=self.render, args=(next_state, render_flag), daemon=True)
-        render_thread.start()
-
-        # listen for Enter key presses
-        listen_stdin_thread = Thread(target=self.listen_stdin, args=(next_state, render_flag), daemon=True)
-        listen_stdin_thread.start()
-
-        watch = random.randrange(num_builders) # pick a Builder to watch
-        
-        if self.should_render:
-            render_flag.set()
-            print(colorama.ansi.clear_screen() + colorama.Cursor.POS(), end="")
-
-
-        states = [env.spawn_builder() for _ in range(num_builders)] # spawn and take initial state
-        agent_rewards = [0 for _ in range(num_builders)] # total reward for current episode
-        ep_history = [[states[i][0]] for i in range(num_builders)] # history of states for current episode
-
-        while True:
-            for i, player in enumerate(env.players):
-                # select an action
-                action, q_val = agent.act(states[i])
-                q_vals.append(q_val)
-
-                # invoke action on env
-                new_state, reward, done = env.step(player, action)
-
-                # store transition and perform one train step
-                agent.replay.store(states[i], action, reward, new_state, done)
-                loss = agent.train()
-
-                # telemetry for plotting graphs
-                losses.append(loss)
-                ep_history[i].append(new_state[0])
-                agent_rewards[i] += reward
-
-                if self.should_render and watch == i:
-                    next_state.put((new_state[0], new_state[1], reward, agent_rewards[i], done))
-
-                if agent.train_steps_completed() % save_freq == 0 and last_mean_ep_reward:
-                    agent.save(f"t{agent.train_steps_completed():08}_m{last_mean_ep_reward:5.1f}.pt")
-
-                # player has died
-                if done:
-                    ep_num += 1
-                    ep_rewards.append(agent_rewards[i])
-                    ep_lengths.append(len(ep_history[i]))
-
-                    if agent_rewards[i] > best_reward:
-                        best_reward = agent_rewards[i]
-                        best_run = ep_history[i]
-
-                        # only post after initial influx of new bests
-                        if agent.get_eps() < 0.9 and webhook:
-                            webhook.post_new_best(best_run, best_reward, agent.get_eps(), player.kills, player.area)
-
-                    # calculate mean and send status report with webhook
-                    if ep_num % mean_freq == 0:
-                        last_mean_ep_reward = sum(ep_rewards[-mean_freq:]) / mean_freq
-                        mean_ep_rewards.append(last_mean_ep_reward)
-
-                        last_mean_ep_length = sum(ep_lengths[-mean_freq:]) / mean_freq
-                        mean_ep_lengths.append(last_mean_ep_length)
-
-                        mean_loss = sum(losses[-mean_freq:]) / mean_freq
-                    
-
-                    # reset agent
-                    agent_rewards[i] = 0 
-                    ep_history[i].clear()
-                    new_state = env.spawn_builder(index=i) # replace player and set starting state
-
-                states[i] = new_state
-                
-            pbar.update(num_builders)
-
 
     def run_eval_model(self, model_name: str, agent: Agent, map_size: int):
         env = self.create_env(map_size=map_size)
@@ -405,6 +246,56 @@ class Playground:
                     else ws.unix_serve(handle_client, path='/sock/controller.sock')
         async with server_entrypoint:
             await asyncio.Future()
+
+
+def setup_training(args):
+    agent = Agent.from_config("config.json", load_model=args.model_name)
+    pbar = tqdm(total=agent.eps_decay_steps, leave=False)
+    stats = TrainingStats()
+    
+    # for posting training progress updates to a discord webhook
+    # includes best run gifs, graphs and statistics
+    if args.no_webhook:
+        webhook = None
+    else:
+        if args.session_name is None:
+            raise Exception("A session name must be specified with --session_name or -s.")
+        if not os.environ.get("WEBHOOK_ID") or not os.environ.get("WEBHOOK_TOKEN"):
+            raise Exception("Webhook ID or Token not specified. To run the project without webhook logging, use the --no-webhook option.")
+        
+        webhook = Webhook(
+            id=os.environ["WEBHOOK_ID"],
+            token=os.environ["WEBHOOK_TOKEN"],
+            session_name=args.session_name,
+            stats=stats,
+            progress_bar=pbar
+        )
+    
+    render_manager = RenderManager()
+    
+    def run_webserver():
+        ws_handler = WebsocketHandler(render_manager)
+        app = WebServer.create_app(ws_handler)
+        app.host()
+        uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    def run_training():
+        builder_group = AgentPlayerGroup(agent, Builder, args.num_bots)
+        training_manager = TrainingManager(args.map_size, [builder_group], stats, pbar, render_manager, webhook)
+        training_manager.start(pbar)
+        
+    webserver_thread = Thread(target=run_webserver, daemon=True)
+    webserver_thread.start()
+    
+    training_thread = Thread(target=run_training, daemon=True)
+    training_thread.start()
+    
+    
+    training_thread.join()
+    print("Training exited")
+    
+    webserver_thread.join()
+    print("Webserver exited.")
     
 
 def main(args):
@@ -418,37 +309,7 @@ def main(args):
         return playground.run_eval_model(args.model_name, agent, args.map_size)
     
     if args.subcommand == "train":
-        agent = Agent.from_config("config.json", load_model=args.model_name)
-        
-        # for posting training progress updates to a discord webhook
-        # includes best run gifs, graphs and statistics
-        if args.no_webhook:
-            webhook = None
-        else:
-            if args.session_name is None:
-                raise Exception("A session name must be specified with --session_name or -s.")
-            if not os.environ.get("WEBHOOK_ID") or not os.environ.get("WEBHOOK_TOKEN"):
-                raise Exception("Webhook ID or Token not specified. To run the project without webhook logging, use the --no-webhook option.")
-            
-            webhook = Webhook(
-                id=os.environ["WEBHOOK_ID"],
-                token=os.environ["WEBHOOK_TOKEN"],
-                session_name=args.session_name,
-                init_msg=f"""Training started, params: 
-                    batch size = {agent.batch_size:,}, 
-                    memory size = {agent.replay.size:,}, 
-                    learning rate = {agent.learning_rate:,},
-                    total training steps = {agent.eps_decay_steps:,}, 
-                    update target frequency = {agent.update_target_rate:,}"""
-            )
-            
-        return playground.run_builder_server(
-            agent=agent,
-            webhook=webhook,
-            rand_chance=args.rand,
-            num_builders=args.num_bots,
-            map_size=args.map_size
-        )
+        setup_training(args)
     
     if args.subcommand == "online":
 
