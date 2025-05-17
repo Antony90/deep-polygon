@@ -1,33 +1,32 @@
 import asyncio
 import json
-import sys
 import os
+import sys
 import time
-import art
-import numpy as np
-
-import colorama
-from colorama import Fore, Style
-import torch
-from tqdm import tqdm
+from queue import Empty, Queue
 from threading import Event, Thread
-from queue import Queue, Empty
 from typing import Callable, Optional
-from apscheduler.schedulers.background import BackgroundScheduler
-from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
-import uvicorn
 
+import art
+import colorama
+import numpy as np
+import uvicorn
+import websockets
+from apscheduler.schedulers.background import BackgroundScheduler
+from colorama import Fore, Style
+from tqdm import tqdm
+from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
+
+from agent import Agent, StateType
+from constants import STATE_SHAPE, Direction
+from env.game import Game
 from env.player.builder import Builder
+from env.state import Block, Overlay
 from train.manager import AgentPlayerGroup, RenderManager, TrainingManager
 from train.stats import TrainingStats
 from web.server import WebServer
 from web.webhook import Webhook
 from web.websocket import WebsocketHandler
-from constants import STATE_SHAPE, Direction
-from agent import Agent, StateType
-
-from env.state import Block, Overlay
-from env.game import Game
 
 
 def red(string: str):
@@ -242,8 +241,8 @@ class Playground:
             except ConnectionClosedOK:
                 print("client closed ok")
 
-        server_entrypoint = ws.serve(handle_client, port=4321) if os.environ.get('USE_TCP_SOCK') \
-                    else ws.unix_serve(handle_client, path='/sock/controller.sock')
+        server_entrypoint = websockets.serve(handle_client, port=4321) if os.environ.get('USE_TCP_SOCK') \
+                    else websockets.unix_serve(handle_client, path='/sock/controller.sock')
         async with server_entrypoint:
             await asyncio.Future()
 

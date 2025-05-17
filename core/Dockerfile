@@ -6,9 +6,7 @@ ENV TZ=Europe/London
 COPY requirements.txt ./
 RUN python -m pip install -r requirements.txt
 
-COPY *.py ./
-COPY env ./env
-COPY train ./train
+COPY core ./core
 
 COPY config.json ./
 ENTRYPOINT ["python", "main.py"]
