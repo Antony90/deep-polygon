@@ -1,10 +1,12 @@
 from random import SystemRandom
+from typing import Optional
 
 from constants import DEFAULT_MAP_SIZE, Direction
 
 from env.player.base import Player
 from env.player.builder import Builder
 from env.grid import Grid, GridValue
+from env.player.extra import Killer
 
 systemrandom = SystemRandom()
 
@@ -21,7 +23,7 @@ class Game:
                 self.map_size = DEFAULT_MAP_SIZE
                 
         self.grid = Grid(self.map_size)
-        self.players: list[Player] = []
+        self.players: dict[Player] = {}
         self.running = True
 
     @staticmethod
@@ -75,7 +77,7 @@ class Game:
                 player.trail_start_dir = action
                 player_has_trail = True
 
-            for enemy in self.players:
+            for enemy in self.players.values():
                 if enemy.dead:
                     continue
 
@@ -129,7 +131,7 @@ class Game:
         # Cannot be too close to players
         # Note: this can cause spawning to be impossible
         # In small maps with too many players
-        for player in self.players:
+        for player in self.players.values():
             dist = self.manhattan_distance(player.pos, spawn_pos)
             if dist <= min_player_dist:
                 return False
@@ -137,34 +139,15 @@ class Game:
         return True
             
 
-    def spawn_builder(self, index=-1):
-        '''Specify `index` to replace a specific agent'''
-        generate_spawn_pos = lambda: [systemrandom.randint(5, self.map_size - 6) for _ in range(2)]
-        spawn_pos = generate_spawn_pos()
-
-        num_attempts = 0
-        max_attempts = 5
-        
-        while not self.is_valid_spawn(spawn_pos) and num_attempts < max_attempts:
-            spawn_pos = generate_spawn_pos()
-            num_attempts += 1
+    def spawn_player(self, player_cls: Player, replace_player_id: Optional[int] = None):
+        '''Specify `replace_player_id` to replace a specific player instance'''
+        player_id = replace_player_id or len(self.players) + 1
             
-        # TODO: facing towards middle of map like real splix
-        spawn_dir = systemrandom.randint(0, 3)
-
-        player_id = self.players[index].id if index >= 0 else len(self.players) + 1
-        player = Builder(self, player_id, spawn_pos, spawn_dir)
-
-        if index >= 0:
-            self.players[index] = player
-        else:
-            self.players.append(player)
-
-        player.area_bounds = (spawn_pos[0] - 2, spawn_pos[1] - 2, spawn_pos[0] + 2, spawn_pos[1] + 2)
-        self.grid.set_area(player.id, *player.area_bounds)
-        player.calculate_area()
-
-        return player.generate_state(Direction.PAUSE, self)
+        player = player_cls.spawn(self, player_id)
+                    
+        # Store player and generate initial state
+        self.players[player_id] = player
+        return player, player.generate_state(Direction.PAUSE, self)
 
     def close(self):
         self.running = False

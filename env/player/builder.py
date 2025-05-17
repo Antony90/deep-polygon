@@ -1,7 +1,7 @@
 import numpy as np
 
 from constants import STATE_WIDTH, Direction
-from env.state import State
+from env.state import GridState
 from env.grid import Grid, GridValue
 from env.player.base import Player
 
@@ -26,13 +26,13 @@ class Builder(Player):
 
 
     def draw_enemy(self, enemy: Player, state: np.ndarray, grid: Grid, enemy_num: int):
-        State.draw_blocks(state, self.pos[::-1], grid == enemy.id, enemy_num)
-        State.draw_trail(state, enemy, self.pos, enemy_num)
+        GridState.draw_blocks(state, self.pos[::-1], grid == enemy.id, enemy_num)
+        GridState.draw_trail(state, enemy, self.pos, enemy_num)
 
-        pos_x, pos_y = State.abs_to_rel_xy(enemy.pos, self.pos)
+        pos_x, pos_y = GridState.abs_to_rel_xy(enemy.pos, self.pos)
         enemy_pos_rel_yx = (pos_y, pos_x)
-        if not State.is_outside(enemy_pos_rel_yx):
-            State.draw_head(state, enemy_pos_rel_yx, enemy_num)
+        if not GridState.is_outside(enemy_pos_rel_yx):
+            GridState.draw_head(state, enemy_pos_rel_yx, enemy_num)
 
     def is_pos_in_fov(self, pos):
         return abs(self.pos[0] - pos[0]) <= STATE_WIDTH//2 and \
@@ -111,14 +111,14 @@ class Builder(Player):
             
 
     def generate_grid_state(self, game, closest_2_enemies: list[Player]) -> np.ndarray:
-        state = State.template()
-        state_center_yx = State.center_yx() # player head is in center of state array
+        state = GridState.template()
+        state_center_yx = GridState.center_yx() # player head is in center of state array
         center_pos_yx = self.pos[::-1]
 
         # self trail, blocks, head
-        State.draw_blocks(state, center_pos_yx, game.grid == self.id)
-        State.draw_trail(state, self, self.pos)
-        State.draw_head(state, state_center_yx)
+        GridState.draw_blocks(state, center_pos_yx, game.grid == self.id)
+        GridState.draw_trail(state, self, self.pos)
+        GridState.draw_head(state, state_center_yx)
         
         # enemy trail, blocks, head
         
@@ -126,7 +126,7 @@ class Builder(Player):
         for i in range(len(closest_2_enemies)-1, -1, -1):
             self.draw_enemy(closest_2_enemies[i], state, game.grid, enemy_num=i)
 
-        State.draw_walls(state, center_pos_yx, game.grid == GridValue.WALL)
+        GridState.draw_walls(state, center_pos_yx, game.grid == GridValue.WALL)
 
         # transpose to have channels first for pytorch CNN
         return state.transpose((2, 0, 1)).astype(np.float32)

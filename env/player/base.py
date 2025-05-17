@@ -2,12 +2,18 @@ from collections import deque
 from queue import PriorityQueue
 
 from abc import abstractmethod, ABC
-from typing import Literal
+import random
+from typing import Literal, TypeVar
 
 import numpy as np
 
 from constants import STATE_SHAPE, STATE_WIDTH, VECTORS_YX, Direction
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from env.game import Game
 
+
+T = TypeVar("T", bound="Player")
 
 class Player(ABC):
     def __init__(self, game, player_id: int, spawn_pos: list[int], spawn_dir: Direction):
@@ -26,6 +32,36 @@ class Player(ABC):
 
         self.time_since_land = 0
         self.trail_start_rel = (0, 0) # relative pos to trail start 
+
+    @classmethod
+    def spawn(cls: type[T], env: "Game", player_id: int) -> T:
+        # Generate valid spawn pos and starting direction
+        generate_spawn_pos = lambda: [
+            random.randint(5, env.map_size - 6) for _ in range(2)
+        ]
+
+        spawn_pos = generate_spawn_pos()
+        max_attempts = 5
+        for _ in range(max_attempts):
+            if env.is_valid_spawn(spawn_pos):
+                break
+            spawn_pos = generate_spawn_pos()
+
+        spawn_dir = random.randint(0, 3)
+        player = cls(env, player_id, spawn_pos, spawn_dir)
+
+        # Fill starting 5x5 area with player head in center
+        player.area_bounds = (
+            spawn_pos[0] - 2,
+            spawn_pos[1] - 2,
+            spawn_pos[0] + 2,
+            spawn_pos[1] + 2
+        )
+        env.grid.set_area(player.id, *player.area_bounds)
+        player.calculate_area()
+
+        return player
+
 
     def calculate_area(self):
         (minX, minY, maxX, maxY) = self.area_bounds

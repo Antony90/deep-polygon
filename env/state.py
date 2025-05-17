@@ -3,7 +3,7 @@ from typing import Optional
 import numpy as np
 from PIL import Image
 
-from constants import STATE_SHAPE
+from constants import STATE_SHAPE, STATE_WIDTH
 
 from env.player.base import Player
 
@@ -24,9 +24,9 @@ class Block(IntEnum):
 class Overlay:
     """Channel in state for player heads, trails.
     
-    The `n`th player starts at `(n * 2)` and has 3 slots: `TRAIL`, `HEAD`.
+    The `n`th player starts at `(n * 2)` and has 2 slots: `TRAIL`, `HEAD`.
     
-    ```py
+    ```python
     # Example for SELF channel; SELF always takes 0th slot
     state[pos][SELF] = head_slot(0)
 
@@ -37,19 +37,19 @@ class Overlay:
     ```
     """
     EMPTY = 0
-    # 2 slots per player
-    BASE_TRAIL_SLOT = 1
-    BASE_HEAD_SLOT  = 2
-
+    # 2 slots per player, head and trail
+    BASE_SLOT = 1
+    
     @classmethod
     def trail_slot(cls, player_num: int):
-        return cls.BASE_TRAIL_SLOT * 2 + player_num
+        return cls.BASE_SLOT + player_num * 2
     @classmethod
+    
     def head_slot(cls, player_num: int):
-        return cls.BASE_HEAD_SLOT * 2 + player_num
+        return cls.BASE_SLOT + player_num * 2 + 1
 
 
-class State:
+class GridState:
     # channel indices
     BLOCKS = 0 # wall, player blocks, empty
 
@@ -87,10 +87,10 @@ class State:
     
     @staticmethod
     def center_xy():
-        return State.center_xy()[::-1]
+        return GridState.center_xy()[::-1]
 
     @classmethod
-    def draw_trail(cls, state: np.ndarray, player: Player, center_xy: tuple[int], enemy_num: Optional[int] = None):
+    def draw_trail(cls, grid_state: np.ndarray, player: Player, center_xy: tuple[int], enemy_num: Optional[int] = None):
         """Draw a player's trail on to state, relative to the centre pos.
 
         Args:
@@ -133,9 +133,9 @@ class State:
 
 
             if xmin == xmax: # same x
-                state[ymin:ymax+1, xmin, channel] = Overlay.trail_slot(player_num)
+                grid_state[ymin:ymax+1, xmin, channel] = Overlay.trail_slot(player_num)
             elif ymin == ymax: # same y
-                state[ymin, xmin:xmax+1, channel] = Overlay.trail_slot(player_num)
+                grid_state[ymin, xmin:xmax+1, channel] = Overlay.trail_slot(player_num)
             
     @classmethod
     def _get_valid_draw_area(cls, center_pos_yx: tuple[int], draw_mask: np.ndarray):
@@ -158,7 +158,7 @@ class State:
         return ys, xs
 
     @classmethod
-    def draw_blocks(cls, state: np.ndarray, center_pos_yx: tuple[int], block_draw_mask: np.ndarray, enemy_num: Optional[int] = None):
+    def draw_blocks(cls, grid_state: np.ndarray, center_pos_yx: tuple[int], block_draw_mask: np.ndarray, enemy_num: Optional[int] = None):
         '''Draw `value` onto `state` using `centre_pos` as the relative centre to index the `draw_mask`'''
         ys, xs = cls._get_valid_draw_area(center_pos_yx, block_draw_mask)
 
@@ -167,16 +167,16 @@ class State:
         else:
             block = Block.enemy_block_for(enemy_num) 
 
-        state[ys, xs, State.BLOCKS] = block
+        grid_state[ys, xs, GridState.BLOCKS] = block
 
     @classmethod
-    def draw_walls(cls, state: np.ndarray, center_pos_yx: tuple[int], wall_draw_mask: np.ndarray):
+    def draw_walls(cls, grid_state: np.ndarray, center_pos_yx: tuple[int], wall_draw_mask: np.ndarray):
         ys, xs = cls._get_valid_draw_area(center_pos_yx, wall_draw_mask)
-        state[ys, xs, State.BLOCKS] = Block.WALL
+        grid_state[ys, xs, GridState.BLOCKS] = Block.WALL
 
 
     @classmethod
-    def draw_head(cls, state: np.ndarray, relative_pos_yx: tuple[int], enemy_num: Optional[int] = None):
+    def draw_head(cls, grid_state: np.ndarray, relative_pos_yx: tuple[int], enemy_num: Optional[int] = None):
         if enemy_num is None:
             channel = cls.SELF
             player_num = 0
@@ -184,29 +184,33 @@ class State:
             channel = cls.ENEMY
             player_num = enemy_num
             
-        state[relative_pos_yx][channel] = Overlay.head_slot(player_num)
+        grid_state[relative_pos_yx][channel] = Overlay.head_slot(player_num)
 
     @classmethod
-    def to_img(cls, state: np.ndarray, size=(512, 512)):
-        state = state.transpose((1, 2, 0))
-        coloured_array = np.zeros_like(state, dtype=np.uint8)
+    def to_img(cls, grid_sate: np.ndarray, size=(512, 512)):
+        grid_sate = grid_sate.transpose((1, 2, 0))
+        coloured_array = np.zeros_like(grid_sate, dtype=np.uint8)
 
         # TODO: swap wall and empty back for splix.io training
-        coloured_array[state[:, :, cls.BLOCKS] == Block.WALL              ] = [255, 255, 255]
-        coloured_array[state[:, :, cls.BLOCKS] == Block.EMPTY             ] = [ 16,  20,  27]
-        coloured_array[state[:, :, cls.BLOCKS] == Block.SELF_BLOCK        ] = [ 63, 185,  80]
-        coloured_array[state[:, :, cls.BLOCKS] == Block.enemy_block_for(0)] = [255,   0,   0]
-        coloured_array[state[:, :, cls.BLOCKS] == Block.enemy_block_for(1)] = [255, 205,   0]
+        coloured_array[grid_sate[:, :, cls.BLOCKS] == Block.WALL              ] = [255, 255, 255]
+        coloured_array[grid_sate[:, :, cls.BLOCKS] == Block.EMPTY             ] = [ 16,  20,  27]
+        coloured_array[grid_sate[:, :, cls.BLOCKS] == Block.SELF_BLOCK        ] = [ 63, 185,  80]
+        coloured_array[grid_sate[:, :, cls.BLOCKS] == Block.enemy_block_for(0)] = [255,   0,   0]
+        coloured_array[grid_sate[:, :, cls.BLOCKS] == Block.enemy_block_for(1)] = [255, 205,   0]
         
         # Self overlay colour
-        coloured_array[state[:, :, cls.SELF] == Overlay.head_slot(0)      ] = [ 35,  69,  40]
-        coloured_array[state[:, :, cls.SELF] == Overlay.trail_slot(0)     ] = [ 51, 123,  61]
+        coloured_array[grid_sate[:, :, cls.SELF] == Overlay.head_slot(0)      ] = [ 35,  69,  40]
+        coloured_array[grid_sate[:, :, cls.SELF] == Overlay.trail_slot(0)     ] = [ 51, 123,  61]
         
         # Enemy 1 and 2 overlay colour
-        coloured_array[state[:, :, cls.ENEMY] == Overlay.trail_slot(0)    ] = [151,   0,   0]
-        coloured_array[state[:, :, cls.ENEMY] == Overlay.head_slot(0)     ] = [ 80,   0,   3]
-        coloured_array[state[:, :, cls.ENEMY] == Overlay.trail_slot(1)    ] = [162, 130,   0]
-        coloured_array[state[:, :, cls.ENEMY] == Overlay.head_slot(1)     ] = [ 84,  68,   0]
+        coloured_array[grid_sate[:, :, cls.ENEMY] == Overlay.trail_slot(0)    ] = [151,   0,   0]
+        coloured_array[grid_sate[:, :, cls.ENEMY] == Overlay.head_slot(0)     ] = [ 80,   0,   3]
+        coloured_array[grid_sate[:, :, cls.ENEMY] == Overlay.trail_slot(1)    ] = [162, 130,   0]
+        coloured_array[grid_sate[:, :, cls.ENEMY] == Overlay.head_slot(1)     ] = [ 84,  68,   0]
 
-        return Image.fromarray(coloured_array, mode="RGB") \
-            .resize(size=size, resample=Image.Resampling.NEAREST)
+        image = Image.fromarray(coloured_array, mode="RGB")
+        
+        if size == (STATE_WIDTH, STATE_WIDTH):
+            return image
+        else:
+            return image.resize(size=size, resample=Image.Resampling.NEAREST)
