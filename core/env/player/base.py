@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 T = TypeVar("T", bound="Player")
 
 class Player(ABC):
-    def __init__(self, game, player_id: int, spawn_pos: list[int], spawn_dir: Direction):
+    def __init__(self, game: "Game", player_id: int, spawn_pos: list[int], spawn_dir: Direction):
         self.game = game
         self.id = player_id
         self.pos = spawn_pos
@@ -170,7 +170,7 @@ class Player(ABC):
         fill_grid[:, minX] = fill_grid[:, maxX] = fill_grid[minY, :] = fill_grid[maxY, :] = 2
 
         # heads and trail starts of enemies prevent fill
-        for enemy in self.game.players:
+        for enemy in self.game.get_players():
             # TODO: cull far away players
             if enemy.dead or enemy == self:
                 continue
@@ -288,15 +288,15 @@ class Player(ABC):
     def already_paused(self):
         return self.last_dir == Direction.PAUSE
 
-    def find_closest_k_enemies(self, game, k: int, max_dist=STATE_WIDTH):
+    def find_closest_k_enemies(self, game: "Game", k: int, max_dist=STATE_WIDTH):
         """Closest k (2) enemies, in ascending manhattan distance from position.
         
         If >0 enemies found, returns (closest_enemy_dist, enemies)
         Else return (-1, [])"""
-        enemy_queue = PriorityQueue(maxsize=len(game.players) - 1)
+        enemy_queue = PriorityQueue(maxsize=game.get_num_players() - 1)
         found_any = False
         
-        for enemy in game.players:
+        for enemy in game.get_players():
             if enemy == self:
                 continue
             

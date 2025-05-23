@@ -77,7 +77,7 @@ class Game:
                 player.trail_start_dir = action
                 player_has_trail = True
 
-            for enemy in self.players.values():
+            for enemy in self.get_players():
                 if enemy.dead:
                     continue
 
@@ -131,15 +131,22 @@ class Game:
         # Cannot be too close to players
         # Note: this can cause spawning to be impossible
         # In small maps with too many players
-        for player in self.players.values():
+        for player in self.get_players():
             dist = self.manhattan_distance(player.pos, spawn_pos)
             if dist <= min_player_dist:
                 return False
             
         return True
+    
+    def get_players(self):
+        return self.players.values()
+    
+    
+    def get_num_players(self):
+        return len(self.players)
             
 
-    def spawn_player(self, player_cls: Player, replace_player_id: Optional[int] = None):
+    def spawn_player(self, player_cls: Player, replace_player_id: Optional[int] = None) -> tuple[Player, any]:
         '''Specify `replace_player_id` to replace a specific player instance'''
         player_id = replace_player_id or len(self.players) + 1
             

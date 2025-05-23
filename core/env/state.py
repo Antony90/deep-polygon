@@ -49,6 +49,30 @@ class Overlay:
         return cls.BASE_SLOT + player_num * 2 + 1
 
 
+
+
+
+PALETTE = [
+    # index 0-9 (same order as used below)
+    (255, 255, 255),  # WALL  (dark)
+    (16, 20, 27),     # EMPTY (dark)
+    (160, 160, 160),  # WALL  (light)
+    (255, 255, 255),  # EMPTY (light)
+    (63, 185, 80),    # SELF_BLOCK
+    (255, 0, 0),      # enemy_block_0
+    (255, 205, 0),    # enemy_block_1
+    (35, 69, 40),     # self_head
+    (51, 123, 61),    # self_trail
+    (151, 0, 0),      # enemy0_trail
+    (80, 0, 3),       # enemy0_head
+    (162, 130, 0),    # enemy1_trail
+    (84, 68, 0),      # enemy1_head
+]
+
+PALETTE_FLAT = sum(PALETTE, ()) + (0,) * (256 * 3 - len(PALETTE) * 3)  # Pad to full palette
+
+
+
 class GridState:
     # channel indices
     BLOCKS = 0 # wall, player blocks, empty
@@ -187,13 +211,19 @@ class GridState:
         grid_state[relative_pos_yx][channel] = Overlay.head_slot(player_num)
 
     @classmethod
-    def to_img(cls, grid_sate: np.ndarray, size=(512, 512)):
+    def to_img(cls, grid_sate: np.ndarray, dark_mode=True, size=(512, 512)):
         grid_sate = grid_sate.transpose((1, 2, 0))
         coloured_array = np.zeros_like(grid_sate, dtype=np.uint8)
 
         # TODO: swap wall and empty back for splix.io training
-        coloured_array[grid_sate[:, :, cls.BLOCKS] == Block.WALL              ] = [255, 255, 255]
-        coloured_array[grid_sate[:, :, cls.BLOCKS] == Block.EMPTY             ] = [ 16,  20,  27]
+        
+        if dark_mode:
+            coloured_array[grid_sate[:, :, cls.BLOCKS] == Block.WALL              ] = [255, 255, 255]
+            coloured_array[grid_sate[:, :, cls.BLOCKS] == Block.EMPTY             ] = [ 16,  20,  27]
+        else:
+            coloured_array[grid_sate[:, :, cls.BLOCKS] == Block.WALL              ] = [160, 160, 160]
+            coloured_array[grid_sate[:, :, cls.BLOCKS] == Block.EMPTY             ] = [255, 255, 255]
+
         coloured_array[grid_sate[:, :, cls.BLOCKS] == Block.SELF_BLOCK        ] = [ 63, 185,  80]
         coloured_array[grid_sate[:, :, cls.BLOCKS] == Block.enemy_block_for(0)] = [255,   0,   0]
         coloured_array[grid_sate[:, :, cls.BLOCKS] == Block.enemy_block_for(1)] = [255, 205,   0]
@@ -209,8 +239,9 @@ class GridState:
         coloured_array[grid_sate[:, :, cls.ENEMY] == Overlay.head_slot(1)     ] = [ 84,  68,   0]
 
         image = Image.fromarray(coloured_array, mode="RGB")
+        # image.putpalette()
         
-        if size == (STATE_WIDTH, STATE_WIDTH):
+        if size == STATE_SHAPE[:2]:
             return image
         else:
             return image.resize(size=size, resample=Image.Resampling.NEAREST)

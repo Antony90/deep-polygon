@@ -1,15 +1,19 @@
 import base64
 from collections import defaultdict
 from io import BytesIO
-from queue import Queue
 import random
 from threading import Thread
+from asyncio import Queue as AsyncQueue
+from queue import Queue as BlockingQueue
 from typing import Optional
 
 import colorama
+import numpy as np
 from tqdm import tqdm
 
 from agent import Agent
+from constants import STATE_SHAPE
+from train.render import RenderManager
 from env.game import Game
 from env.player.base import Player
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -31,9 +35,19 @@ class AgentPlayerGroup:
         self.player_cls = player_cls
         self.num_players = num_players
 
-        self.player_to_state = {}
+        self.player_to_state: dict[int, any] = {}
         self.player_ep_length = defaultdict(int)
-
+        self.players: dict[int, Player] = {}
+    
+    def spawn_player(self, env: Game, replace_player_id: Optional[int] = None):
+        player, new_state = env.spawn_player(self.player_cls, replace_player_id)
+        self.players[player.id] = player
+        
+        return player, new_state
+    
+    def get_players(self):
+        return [player for player in self.players.values()]
+        
     def get_state(self, player_id):
         return self.player_to_state[player_id]
 
@@ -46,42 +60,9 @@ class AgentPlayerGroup:
     def pop_ep_length(self, player_id: int):
         return self.player_ep_length.pop(player_id)
 
-    def get_players(self):
-        return [player for player in self.player_to_state]
 
 
-class RenderManager:
-    """
-    Tracks the highest reward alive player
-    Stores a history of the new best replays
-    """
 
-    def __init__(self):
-        self.player_id = None
-        self.state_queue: Queue[tuple[bytes, float]] = Queue()
-
-    def get_best_score_replay(self) -> list[GridState]:
-        return
-
-    def set_spectate_player(self, player_id):
-        # TODO: validation on `env` to check if player exists
-        self.player_id = player_id
-        
-    def queue_state(self, state: any, reward):
-        grid_state, _ = state
-        img = GridState.to_img(grid_state)
-        # TODO: optimize packet size
-        buffer = BytesIO()
-        img.save(buffer, format="png")
-        img_b64 = base64.b64encode(img)
-        # Submit for websocket server to push to client
-        self.state_queue.put((img_b64, reward))
-
-    def pop_state(self):
-        return self.state_queue.get()
-    
-    def empty(self):
-        return self.state_queue.qsize() == 0
 
 
 class TrainingManager:
@@ -108,7 +89,7 @@ class TrainingManager:
 
     def start(self):
         self._init_scheduler()
-        self._spawn_players()
+        self._spawn_initial_players()
         self._run_train_loop()
 
     def stop(self):
@@ -117,7 +98,7 @@ class TrainingManager:
     def _init_scheduler(self):
         if self.webhook:
             self.scheduler.add_job(
-                self.webhook, "interval", minutes=30, max_instances=1
+                self.webhook.post_report, "interval", minutes=30, max_instances=1
             )
 
         # We'll track the first AI on the progress bar for now
@@ -137,13 +118,13 @@ class TrainingManager:
         self.scheduler.add_job(update_pbar, "interval", seconds=5, max_instances=1)
         self.scheduler.start()
 
-    def _spawn_players(self):
+    def _spawn_initial_players(self):
         # Spawn correct player type for each agent
         for group in self.player_groups:
             for _ in range(group.num_players):
-                player, initial_state = self.env.spawn_player(group.player_cls)
+                player, initial_state = group.spawn_player(self.env)
 
-                group.set_state(player, initial_state)
+                group.set_state(player.id, initial_state)
 
     def _run_train_loop(self):
         self.run = True
@@ -153,7 +134,7 @@ class TrainingManager:
                 players = player_group.get_players()
 
                 for player in players:
-                    state = player_group.get_state(player)
+                    state = player_group.get_state(player.id)
 
                     action, q_val = agent.act(state)
                     new_state, reward, done = self.env.step(player, action)
@@ -165,21 +146,19 @@ class TrainingManager:
                     # Update Telemetry
                     self.stats.add_q_val(q_val)
                     self.stats.add_loss(loss)
-                    player_group.inc_ep_length(player)
+                    player_group.inc_ep_length(player.id)
 
                     # Rendering logic
                     if self.render_manager.player_id == player.id:
-                        self.render_manager.queue_state((new_state, reward))
+                        self.render_manager.queue_state(new_state, reward)
 
                     if done:
-                        ep_length = player_group.pop_ep_length(player)
+                        ep_length = player_group.pop_ep_length(player.id)
                         self.stats.update_episode(reward, ep_length)
                         
-                        player, new_state = self.env.spawn_player(
-                            player_group.player_cls, player.id
-                        )
+                        player, new_state = player_group.spawn_player(self.env, player.id)
 
-                    player_group.set_state(player, new_state)
+                    player_group.set_state(player.id, new_state)
 
                 # Increment progress bar manually
                 self.pbar.update(len(players))
