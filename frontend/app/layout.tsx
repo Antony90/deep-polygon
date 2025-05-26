@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import WebSocketProvider from "@/components/providers/WebSocketProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,7 +15,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Deep Polygon",
-  description: "Real-time dashboard for deep reinforcement learning, featuring live interaction with agents and monitoring",
+  description:
+    "Real-time dashboard for deep reinforcement learning, featuring live interaction with agents and monitoring",
 };
 
 export default function RootLayout({
@@ -22,11 +24,14 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const wsUrl = "ws://localhost:8000/ws";
+
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <WebSocketProvider url={wsUrl} />
         {children}
       </body>
     </html>

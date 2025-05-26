@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 const THROTTLE_FPS = 1000;
 const THROTTLE_MS = 1000 / THROTTLE_FPS;
 
-
-export default function LivePlayerView({ className }: { className: string }) {
+export function LivePlayerView() {
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [connected, setConnected] = useState<boolean>(false);
   const [reward, setReward] = useState(0);
@@ -21,7 +21,7 @@ export default function LivePlayerView({ className }: { className: string }) {
       // const now = Date.now();
       // if (now - lastUpdateRef.current >= THROTTLE_MS) {
       //   lastUpdateRef.current = now;
-        
+
       // }
       const { image, reward } = JSON.parse(e.data);
       setImgSrc(image);
@@ -45,9 +45,9 @@ export default function LivePlayerView({ className }: { className: string }) {
   }, []);
 
   return (
-    <div className={`ring-1 ring-neutral-500 p-4 rounded-md flex flex-col gap-4 ${className}`}>
-      <div className="flex items-center justify-between p-2">
-        <h1 className="text-xl font-bold hover:bg-red-500">Live Player</h1>
+    <Card>
+      <CardHeader className="flex items-center justify-between">
+        <CardTitle className="text-lg">Live Player</CardTitle>
         <div
           className={`rounded-md  p-1 flex items-center gap-2 px-2 ${
             live
@@ -68,19 +68,21 @@ export default function LivePlayerView({ className }: { className: string }) {
           />
           <p className="font-bold">{connected ? "LIVE" : "CONNECTING"}</p>
         </div>
-      </div>
-      {imgSrc ? (
-        <img
-          className="rounded-md render ring-1 ring-neutral-300"
-          src={imgSrc}
-          style={{ imageRendering: "pixelated" }}
-        />
-      ) : (
-        <div className="animate-pulse rounded-md bg-neutral-300 aspect-square"></div>
-      )}
-      <div className="flex">
-        <div>{reward}</div>
-      </div>
-    </div>
+      </CardHeader>
+      <CardContent>
+        {imgSrc ? (
+          <img
+            className="rounded-md ring-1 ring-neutral-300"
+            src={imgSrc}
+            style={{ imageRendering: "pixelated" }}
+          />
+        ) : (
+          <div className="animate-pulse rounded-md bg-neutral-300 aspect-square"></div>
+        )}
+        <div className="flex">
+          <div>{reward}</div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
