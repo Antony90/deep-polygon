@@ -27,7 +27,7 @@ from train.manager import AgentPlayerGroup, RenderManager, TrainingManager
 from train.stats import TrainingStats
 from web.server import WebServer
 from web.webhook import Webhook
-from web.websocket import WebsocketHandler
+from web.websocket import WebSocketHandler
 
 def red(string: str):
     return Fore.RED + string + Fore.RESET
@@ -253,7 +253,6 @@ class SilentTqdmFile(io.StringIO):
 def setup_training(args):
     agent = Agent.from_config("config.json", load_model=args.model_name)
     pbar = tqdm(total=agent.eps_decay_steps, leave=False)
-    stats = TrainingStats()
     
     # for posting training progress updates to a discord webhook
     # includes best run gifs, graphs and statistics
@@ -274,21 +273,22 @@ def setup_training(args):
         )
     
     render_manager = RenderManager()
+    ws_handler = WebSocketHandler(render_manager)
+    stats = TrainingStats(ws_handler)
     
     def run_webserver():
-        ws_handler = WebsocketHandler(render_manager)
         app = WebServer.create_app(ws_handler, render_manager, pbar)
         uvicorn.run(app, host="0.0.0.0", port=8000)
 
 
     def run_training():
-        builder_group = AgentPlayerGroup(agent, Builder, args.num_bots)
-        training_manager = TrainingManager(args.map_size, [builder_group], stats, pbar, render_manager, webhook)
+        builder_group = AgentPlayerGroup(agent, Builder, args.num_bots, agent.device)
+        training_manager = TrainingManager(args.map_size, [builder_group], stats, pbar, render_manager, ws_handler, webhook)
         training_manager.start()
         
     threads = [
         Thread(target=run_training, name="training", daemon=True),
-        Thread(target=render_manager.process_render_queue, name="render", daemon=True),
+        Thread(target=render_manager.process_latest_state_loop, name="render", daemon=True),
         Thread(target=run_webserver, name="webserver", daemon=True)
     ]
     for t in threads:

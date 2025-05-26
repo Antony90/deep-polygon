@@ -1,9 +1,11 @@
+import asyncio
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from tqdm import tqdm
 
 from train.render import RenderManager
-from web.websocket import WebsocketHandler
+from web.websocket import WebSocketHandler
 
 
 class WebServer:
@@ -12,19 +14,23 @@ class WebServer:
     """
 
     @staticmethod
-    def create_app(ws_handler: WebsocketHandler, render_manager: RenderManager, pbar: tqdm):
-        app = FastAPI()
+    def create_app(ws_handler: WebSocketHandler, render_manager: RenderManager, pbar: tqdm):
+        # Run websocket broadcast handler before startup and waits for shutdown
+        @asynccontextmanager
+        async def lifespan(app: FastAPI):
+            asyncio.create_task(ws_handler.run_broadcast_loop())
+            yield  # Wait for shutdown
+            ws_handler.stop_broadcast_loop()
+        
+        app = FastAPI(lifespan=lifespan)
         app.add_middleware(
             CORSMiddleware,
             allow_origins=["http://localhost:3000"]
         )
         
-        @app.get("/queue")
-        def queue_size():
-            return {
-                "work_size": render_manager.render_queue_size(),
-                "state_size": render_manager.state_queue_size()
-            }
+        @app.get("/")
+        def root():
+            return { "data": "Hello World" }
             
         @app.get("/progress")
         def progress():
@@ -34,11 +40,14 @@ class WebServer:
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
             
+            ws_handler.register(websocket)
             render_manager.register_client(websocket)
+            
             try:
                 await ws_handler.serve(websocket)
             except WebSocketDisconnect:
                 print("WebSocket client disconnected.")
+            ws_handler.unregister(websocket)
             render_manager.unregister_client(websocket)
                 
                 

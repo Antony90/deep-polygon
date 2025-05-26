@@ -250,10 +250,10 @@ class Webhook:
     def post_report(self):
         
         # generate graphs, store in memory as .pngs
-        ep_reward_graph = self.reward_graph(self.stats.ep_rewards, self.stats.mean_ep_rewards, self.stats.mean_freq)
-        ep_length_graph = self.ep_length_graph(self.stats.ep_lengths, self.stats.mean_ep_lengths, self.stats.mean_freq)
+        ep_reward_graph = self.reward_graph(self.stats.ep_rewards, self.stats.mean_ep_rewards, self.stats.mean_interval)
+        ep_length_graph = self.ep_length_graph(self.stats.ep_lengths, self.stats.mean_ep_lengths, self.stats.mean_interval)
         q_val_graph = self.q_val_graph(self.stats.q_vals)
-        loss_graph = self.loss_graph(self.stats.losses)
+        loss_graph = self.loss_graph(self.stats.ep_avg_losses)
         
         elapsed = self.pbar.format_dict['elapsed']
         rate = self.pbar.format_dict['rate']

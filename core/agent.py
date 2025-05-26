@@ -213,8 +213,8 @@ class Agent:
             return idx.item(), float(pred[idx])
 
     def train(self):
-        if self.replay.cntr < self.batch_size and self.replay.percent_full() < 0.1:
-            return float('inf')
+        if self.replay.cntr < self.batch_size or self.replay.percent_full() < 0.1:
+            return None
         state, action, reward, new_state, done = self.replay.sample(self.batch_size, self.device)
 
         with torch.no_grad():
@@ -252,8 +252,7 @@ class Agent:
         if self.train_cntr % self.update_target_rate == 0:
             self.update_target_network()
 
-        return 0
-        # return loss.item()
+        return loss
 
     def train_steps_completed(self):
         """No. times `self.train()` has been called."""
