@@ -1,7 +1,7 @@
 <h1 align="center">Deep Polygon</h1>
 
 <p align="center">
-A multi-agent deep reinforcement learning experiment - designing collaborative and competitive agents for grid based arena environments like splix.io, paper.io and tileman.io.
+A multi-agent deep reinforcement learning experiment using PyTorch with a modern real-time monitoring and control dashboard using Next.js - designing and visualizing: collaborative and competitive agents for grid based arena environments like splix.io, paper.io and tileman.io.
 </p>
 
 
@@ -25,6 +25,56 @@ A multi-agent deep reinforcement learning experiment - designing collaborative a
     </tr>
 </table>
 
+## Dashboard [WIP]
+![dashboard](https://github.com/user-attachments/assets/67d93b73-cb4f-42d9-a4bd-5211b21e86e0)
+### Main Features
+This section will be completed as development progresses.
+
+- Live Training Dashboard
+    - Real-time updates via WebSocket for:
+    - Training progress (% complete, ETA, steps, speed)
+    - Live agent stats (total reward, epsilon, etc.)
+    - Leaderboard highlights (e.g. new top runs)
+    - Initial load data via SSR (REST API) for fast first paint
+- Stat Cards
+    - Dynamic, color-coded stat blocks for metrics like:
+        - Avg Reward, Loss, Episode Length, Utilization
+    - Smooth animated number transitions with Framer Motion
+    - Icons, delta indicators, and responsive layout
+- Training Progress
+    - Live animated progress bar
+    - ETA and step counter
+    - Pause/resume and save checkpoint controls
+- Live Player View
+    - Toggle between specific agent or current best
+    - Real-time updates of player reward and status
+- Leaderboard
+    - SSR-rendered initial leaderboard
+    - WebSocket-driven updates for new top performances
+    - Metrics: replay ID, kills, area covered, time
+- Graphs & Charts
+    - Time series of reward/loss/etc. powered by Recharts
+    - SSR-backed initial data, live data injected from WebSocket
+    - Smooth transitions and tooltips
+- State Management
+    - Global state via Redux (minimal, efficient)
+    - Built-in selectors to avoid unnecessary re-renders
+    - WebSocket dispatches updates directly to store
+- UI Framework
+    - shadcn/ui for modern, accessible components
+    - TailwindCSS for utility-first styling
+    - Lucide icons for clean visuals
+
+### Tech Stack
+- React (v19)
+- Next.js (App Router)
+- Redux
+- shadcn/ui + Tailwind CSS for UI
+- Framer Motion for animation
+- Recharts for graphs
+- WebSocket for real-time updates
+- Python FastAPI (REST API) + SSR for initial hydration
+- Lucide Icons
 
 ## Overview
 
