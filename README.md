@@ -25,10 +25,18 @@ A multi-agent deep reinforcement learning experiment using PyTorch with a modern
     </tr>
 </table>
 
-## Dashboard [WIP]
-![dashboard](https://github.com/user-attachments/assets/67d93b73-cb4f-42d9-a4bd-5211b21e86e0)
-### Main Features
-This section will be completed as development progresses.
+## Real-time Dashboard [WIP]
+- Homepage
+
+    ![dashboard](https://github.com/user-attachments/assets/cc1550c5-bc7f-4779-8430-fe2836b1a9cf)
+
+- Replay tab
+    <p align="center">
+    <img src="https://github.com/user-attachments/assets/f3f68e0f-96a6-4638-a856-3921811a4fbc" width="500px" />
+    </p>
+
+### Dashboard Features
+The main purpose of the dashboard is to visualize the agents as a live stream, and display real-time statistics in graphs and cards, as well as a live leaderboard of the best performing agents/episodes. This section will be completed as development progresses.
 
 - Live Training Dashboard
     - Real-time updates via WebSocket for:
