@@ -1,5 +1,5 @@
 services:
-  playground:
+  rl_backend:
     build:
       args:
         # Latest stable CUDA accelerated pytorch

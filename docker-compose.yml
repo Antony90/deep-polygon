@@ -2,25 +2,31 @@ services:
   rl_backend:
     container_name:
       rl_backend
+    env_file:
+      - .env
     build:
       context: .
       dockerfile:
-        Dockerfile
+        core/Dockerfile
     ports:
       - 8000:8000
     volumes:
       - ./models:/app/models
-    env_file:
-      - .env
+      - ./profiling:/app/profiling
+    stdin_open:
+      true
+    tty:
+      true
+    command: ["train", "-n", "7", "-m", "100", "--no-webhook"]
 
   frontend:
     container_name:
       frontend
     build:
-      context: ./frontend
+      context: frontend
       dockerfile:
-        Dockerfile
+        frontend/Dockerfile
     ports:
       - 3000:3000
-
-    
+    depends_on:
+      - rl_backend
