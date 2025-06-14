@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { use, useState } from "react";
 import {
   Card,
   CardContent,
@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Progress } from "../ui/progress";
+import { useAppSelector } from "@/lib/hooks";
+import { TrainingProgress } from "@/types/message";
 
 interface StatComponentProps {
   icon: React.ReactNode;
@@ -52,48 +54,53 @@ const StatCard = ({ icon, label, value }: StatComponentProps) => (
   </div>
 );
 
-export function TrainingOverviewCard() {
+export function TrainingOverviewCard({ initialTrainingProgress }: { initialTrainingProgress: Promise<TrainingProgress> }) {
   const [paused, setPaused] = useState(false);
 
+  const trainingProgress = useAppSelector(s => s.trainingProgress);
+  const {
+    steps,
+    percent_done: percentComplete,
+    eta,
+    rate,
+    runtime,
+    gpu_util: gpuUtil,
+    cpu_util: cpuUtil,
+    epsilon,
+  } = trainingProgress ?? use(initialTrainingProgress);
+
   const seed = "12345";
-  const percentComplete = 64;
-  const eta = paused ? "Paused" : "02:10:00";
-  const runtime = "01:23:45";
-  const speed = "512 it/s";
-  const gpuUtil = "87%";
-  const cpuUtil = "45%";
-  const currentStep = 32000;
-  const totalSteps = 50000;
-  const explorationRate = "0.15";
+  // const eta = paused ? "Paused" : "02:10:00";
+  const totalSteps = 500000;
   const meanInterval = 100;
 
   const milestones = [10000, 20000, 30000, 40000, 50000].map((m) => ({
     position: (m / totalSteps) * 100,
-    completed: currentStep >= m,
+    completed: steps >= m,
   }));
 
   const statCards = [
     {
       icon: <ZapIcon className="h-4 w-4 text-primary" />,
       label: "Speed",
-      value: speed,
+      value: `${rate} steps/s`,
       highlight: paused,
     },
     {
       icon: <span className="text-primary font-medium text-lg">ε</span>,
       label: "Exploration",
-      value: explorationRate,
+      value: epsilon.toFixed(2),
     },
     {
       icon: <Gpu className="h-4 w-4 text-primary" />,
       label: "GPU Util",
-      value: gpuUtil,
+      value: gpuUtil ? `${gpuUtil}%` : "N/A",
       highlight: paused,
     },
     {
       icon: <CpuIcon className="h-4 w-4 text-primary" />,
       label: "CPU Util",
-      value: cpuUtil,
+      value: cpuUtil ? `${cpuUtil}%` : "N/A",
     },
   ];
 
@@ -176,7 +183,7 @@ export function TrainingOverviewCard() {
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <span className="-mt-0.5">Step</span>
                   <span className="font-mono tabular-nums">
-                    {currentStep.toLocaleString()}
+                    {steps.toLocaleString()}
                   </span>
                   <span>/</span>
                   <span className="font-mono tabular-nums">

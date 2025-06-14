@@ -33,7 +33,7 @@ function Section({ title, parameters }: SectionProps) {
   )
 }
 
-export default function MLOverviewCard() {
+export function MLOverviewCard() {
   // Define all parameters in a structured way
   const sections = [
     {

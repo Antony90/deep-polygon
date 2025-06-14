@@ -1,12 +1,10 @@
-import StatsRow from "@/components/dashboard/StatsRow";
+import { StatsRow } from "@/components/dashboard/StatsRow";
 import { TrainingOverviewCard } from "@/components/dashboard/TrainingOverviewCard";
-import { LivePlayerView } from "@/components/dashboard/LivePlayerView";
-import MLOverviewCard from "@/components/dashboard/MLOverviewCard";
+import { MLOverviewCard } from "@/components/dashboard/MLOverviewCard";
 import { SpectatorCard } from "@/components/dashboard/SpectatorCard";
+import { getTrainingProgress } from "@/lib/api-client";
 
 export default function Home() {
-  
-
   
   return (
     <div className="max-w-[1600px] mx-auto px-4">
@@ -33,12 +31,11 @@ export default function Home() {
           <SpectatorCard />
         </div>
         <div className="col-start-7 col-end-13 space-y-4">
-          <TrainingOverviewCard/>
-          <MLOverviewCard/>
+          <TrainingOverviewCard initialTrainingProgress={getTrainingProgress()} />
+          <MLOverviewCard />
         </div>
 
-        <div className="col-start-7 col-end-13">
-        </div>
+        <div className="col-start-7 col-end-13"></div>
       </div>
     </div>
   );

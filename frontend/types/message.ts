@@ -14,8 +14,8 @@ export interface TrainingProgress {
   eta: string;
   rate: number;
   runtime: string;
-  gpu_util: number | "n/a";
-  cpu_util: number | "n/a";
+  gpu_util?: number;
+  cpu_util?: number;
   epsilon: number;
 }
 
@@ -40,22 +40,25 @@ export interface StatisticUpdate {
   };
 }
 
-export interface LeaderboardUpdate {
-  agent_name: string;
-  total_reward: number;
-  kills: number;
-  land: number;
-  rank: number;
-  timestamp: number;
-}
+// export interface LeaderboardUpdate {
+//   agent_name: string;
+//   total_reward: number;
+//   kills: number;
+//   land: number;
+//   rank: number;
+//   timestamp: number;
+// }
 
-export interface GraphUpdate {
-  graph_name: string;
-  value: number;
-}
+// export interface GraphUpdate {
+//   graph_name: string;
+//   value: number;
+// }
 export type WsMessage =
   | { type: "live_frame"; payload: LiveFrame }
   | { type: "training_progress"; payload: TrainingProgress }
   | { type: "mean_statistics"; payload: StatisticUpdate }
-  | { type: "leaderboard"; payload: LeaderboardUpdate }
-  | { type: "graph_update"; payload: GraphUpdate };
+
+export type WsMessageType = WsMessage["type"]
+
+  // | { type: "leaderboard"; payload: LeaderboardUpdate }
+  // | { type: "graph_update"; payload: GraphUpdate };

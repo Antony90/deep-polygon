@@ -3,7 +3,7 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { TrophyIcon, Timer, NetworkIcon } from "lucide-react";
 import { use, useEffect, useState } from "react";
 
-export default function StatsRow() {
+export function StatsRow() {
   
   return (
     <>

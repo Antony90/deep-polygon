@@ -1,5 +1,8 @@
 "use client";
-import { WsMessage } from "@/types/message";
+import { setLiveFrame } from "@/lib/features/liveFrameSlice";
+import { setTrainingProgress } from "@/lib/features/trainingProgressSlice";
+import { useAppDispatch } from "@/lib/hooks";
+import { LiveFrame, WsMessage } from "@/types/message";
 import { useEffect, useRef, useState } from "react";
 
 /**
@@ -20,16 +23,18 @@ import { useEffect, useRef, useState } from "react";
  * Place <WebSocketProvider /> at the top level of your component tree
  * to ensure a single WebSocket connection shared throughout the app.
  */
-export default function WebSocketProvider({ url }: { url: string }) {
+export default function WebSocketProvider({ url, children }: { url: string, children: React.ReactNode }) {
+  const dispatch = useAppDispatch();
+  
   const wsRef = useRef<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
 
-  // Zustand
-  const setLatestFrame = (x: any) => {};
-  const setTrainingProgress = (x: any) => {};
-  const setMeanStatistics = (x: any) => {};
-  const setLeaderboard = (x: any) => {};
-  const updateGraphs = (x: any) => {};
+  
+  // const setLatestFrame = (x: any) => {};
+  // const setTrainingProgress = (x: any) => {};
+  // const setMeanStatistics = (x: any) => {};
+  // const setLeaderboard = (x: any) => {};
+  // const updateGraphs = (x: any) => {};
 
   useEffect(() => {
     wsRef.current = new WebSocket(url);
@@ -57,24 +62,24 @@ export default function WebSocketProvider({ url }: { url: string }) {
 
         switch (type) {
           case "live_frame":
-            setLatestFrame(payload);
+            dispatch(setLiveFrame(payload));
             break;
 
           case "training_progress":
-            setTrainingProgress(payload);
+            dispatch(setTrainingProgress(payload));
             break;
 
-          case "mean_statistics":
-            setMeanStatistics(payload);
-            break;
+          // case "mean_statistics":
+          //   setMeanStatistics(payload);
+          //   break;
 
-          case "leaderboard":
-            setLeaderboard(payload);
-            break;
+          // case "leaderboard":
+          //   setLeaderboard(payload);
+          //   break;
 
-          case "graph_update":
-            updateGraphs(payload);
-            break;
+          // case "graph_update":
+          //   updateGraphs(payload);
+          //   break;
 
           default:
             console.warn("Unknown message type:", type);
@@ -89,5 +94,6 @@ export default function WebSocketProvider({ url }: { url: string }) {
     };
   }, []);
 
-  return <></>;
+  return children;
 }
+

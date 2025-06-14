@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Switch } from "../ui/switch";
+import { useAppSelector } from "@/lib/hooks";
 
 // Types for our data
 type Agent = {
@@ -299,7 +300,7 @@ function PlayerSelectSidebar({ agents }: { agents: Agent[] }) {
 }
 
 function StatsFooter({
-  reward,
+  totalReward,
   rank,
   episodeLength,
   kills,
@@ -316,7 +317,7 @@ function StatsFooter({
           <ArrowUpIcon className="h-3 w-3 text-green-500" />
         </div>
         <span className="text-base font-medium tabular-nums">
-          {reward.toFixed(2)}
+          {totalReward.toFixed(2)}
         </span>
       </div>
       {/* TODO: Animation when in top 3 */}
@@ -358,7 +359,7 @@ function StatsFooter({
 
 // Render the main content area with image and stats
 function StateView({
-  reward,
+  totalReward,
   rank,
   episodeLength,
   kills,
@@ -367,7 +368,7 @@ function StateView({
   isLiveView,
   imgSrc,
 }: {
-  reward: number;
+  totalReward: number;
   rank: number;
   episodeLength: number;
   kills: number;
@@ -408,7 +409,7 @@ function StateView({
       </div>
 
       <StatsFooter
-        reward={reward}
+        totalReward={totalReward}
         rank={23}
         episodeLength={episodeLength}
         kills={kills}
@@ -419,101 +420,105 @@ function StateView({
 }
 
 export function SpectatorCard() {
+  const liveFrame = useAppSelector((s) => s.liveFrame);
+  const { img, reward, total_reward: totalReward, ep_length: episodeLength, kills, land_captured: landCaptured, rank } =
+    liveFrame;
+
   // State for view mode
   const [activeView, setActiveView] = useState<"live" | "replay">("live");
 
   // Live view state
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [imgSrc, setImgSrc] = useState<string | null>(null);
-  const [connected, setConnected] = useState<boolean>(false);
+  // const [connected, setConnected] = useState<boolean>(false);
 
   // Replay view state
-  const [replays, setReplays] = useState<ReplayMeta[]>([]);
-
   // Shared state (will be populated based on selected player/replay)
-  const [reward, setReward] = useState<number>(0);
-  const [episodeLength, setEpisodeLength] = useState<number>(0);
-  const [kills, setKills] = useState<number>(0);
-  const [land, setLand] = useState<number>(0);
-  const [rank, setRank] = useState<number>(0);
 
+  // const [totalReward, setTotalReward] = useState<number>(0);
+  // const [episodeLength, setEpisodeLength] = useState<number>(0);
+  // const [kills, setKills] = useState<number>(0);
+  // const [landCaptured, setLandCaptured] = useState<number>(0);
+  // const [rank, setRank] = useState<number>(0);
+
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [replays, setReplays] = useState<ReplayMeta[]>([]);
   // Determine if we're live
-  const isLive = activeView === "live" && connected && !!imgSrc;
+  // const isLive = activeView === "live" && connected && !!imgSrc;
+  const isLive = true;
 
-  // Mock data initialization
-  useEffect(() => {
-    // Create mock agents and players
-    const mockAgents: Agent[] = [
-      {
-        id: "agent-1",
-        name: "Agent Alpha",
-        players: Array.from({ length: 5 }, (_, i) => ({
-          id: `agent-1-player-${i + 1}`,
-          name: `Player ${i + 1}`,
-          reward: 100 + Math.random() * 200,
-          episodeLength: 100 + Math.floor(Math.random() * 200),
-          kills: Math.floor(Math.random() * 10),
-          land: Math.floor(Math.random() * 1000),
-          rank: i + 1,
-        })),
-      },
-      {
-        id: "agent-2",
-        name: "Agent Beta",
-        players: Array.from({ length: 5 }, (_, i) => ({
-          id: `agent-2-player-${i + 1}`,
-          name: `Player ${i + 1}`,
-          reward: 100 + Math.random() * 200,
-          episodeLength: 100 + Math.floor(Math.random() * 200),
-          kills: Math.floor(Math.random() * 10),
-          land: Math.floor(Math.random() * 1000),
-          rank: i + 6,
-        })),
-      },
-    ];
+  // // Mock data initialization
+  // useEffect(() => {
+  //   // Create mock agents and players
+  //   const mockAgents: Agent[] = [
+  //     {
+  //       id: "agent-1",
+  //       name: "Agent Alpha",
+  //       players: Array.from({ length: 5 }, (_, i) => ({
+  //         id: `agent-1-player-${i + 1}`,
+  //         name: `Player ${i + 1}`,
+  //         reward: 100 + Math.random() * 200,
+  //         episodeLength: 100 + Math.floor(Math.random() * 200),
+  //         kills: Math.floor(Math.random() * 10),
+  //         land: Math.floor(Math.random() * 1000),
+  //         rank: i + 1,
+  //       })),
+  //     },
+  //     {
+  //       id: "agent-2",
+  //       name: "Agent Beta",
+  //       players: Array.from({ length: 5 }, (_, i) => ({
+  //         id: `agent-2-player-${i + 1}`,
+  //         name: `Player ${i + 1}`,
+  //         reward: 100 + Math.random() * 200,
+  //         episodeLength: 100 + Math.floor(Math.random() * 200),
+  //         kills: Math.floor(Math.random() * 10),
+  //         land: Math.floor(Math.random() * 1000),
+  //         rank: i + 6,
+  //       })),
+  //     },
+  //   ];
 
-    // Create mock replays
-    const mockReplays: ReplayMeta[] = Array.from({ length: 10 }, (_, i) => ({
-      id: i + 1,
-      playerName: `Player ${Math.floor(Math.random() * 5) + 1}`,
-      agentName: Math.random() > 0.5 ? "Agent Alpha" : "Agent Beta",
-      timestamp: new Date(Date.now() - Math.random() * 86400000 * 7),
-      finalReward: 200 + Math.random() * 300,
-      episodeLength: 150 + Math.floor(Math.random() * 300),
-      kills: Math.floor(Math.random() * 15),
-      land: Math.floor(Math.random() * 1500),
-      rank: i + 1,
-    })).sort((a, b) => b.finalReward - a.finalReward);
+  //   // Create mock replays
+  //   const mockReplays: ReplayMeta[] = Array.from({ length: 10 }, (_, i) => ({
+  //     id: i + 1,
+  //     playerName: `Player ${Math.floor(Math.random() * 5) + 1}`,
+  //     agentName: Math.random() > 0.5 ? "Agent Alpha" : "Agent Beta",
+  //     timestamp: new Date(Date.now() - Math.random() * 86400000 * 7),
+  //     finalReward: 200 + Math.random() * 300,
+  //     episodeLength: 150 + Math.floor(Math.random() * 300),
+  //     kills: Math.floor(Math.random() * 15),
+  //     land: Math.floor(Math.random() * 1500),
+  //     rank: i + 1,
+  //   })).sort((a, b) => b.finalReward - a.finalReward);
 
-    setAgents(mockAgents);
-    setReplays(mockReplays);
+  //   setAgents(mockAgents);
+  //   setReplays(mockReplays);
 
-    // Set initial selections
-    if (mockAgents.length > 0) {
-      const firstAgent = mockAgents[0];
+  //   // Set initial selections
+  //   if (mockAgents.length > 0) {
+  //     const firstAgent = mockAgents[0];
 
-      if (firstAgent.players.length > 0) {
-        const firstPlayer = firstAgent.players[0];
-        setReward(firstPlayer.reward);
-        setEpisodeLength(firstPlayer.episodeLength);
-        setKills(firstPlayer.kills);
-        setLand(firstPlayer.land);
-        setRank(firstPlayer.rank);
-      }
-    }
+  //     if (firstAgent.players.length > 0) {
+  //       const firstPlayer = firstAgent.players[0];
+  //       setReward(firstPlayer.reward);
+  //       setEpisodeLength(firstPlayer.episodeLength);
+  //       setKills(firstPlayer.kills);
+  //       setLand(firstPlayer.land);
+  //       setRank(firstPlayer.rank);
+  //     }
+  //   }
 
-    // Mock connection
-    const mockConnect = setTimeout(() => {
-      setConnected(true);
-      setImgSrc(
-        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
-      );
-    }, 1500);
+  //   // Mock connection
+  //   const mockConnect = setTimeout(() => {
+  //     setConnected(true);
+  //     setImgSrc(
+  //       "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+  //     );
+  //   }, 1500);
 
-    return () => {
-      clearTimeout(mockConnect);
-    };
-  }, []);
+  //   return () => {
+  //     clearTimeout(mockConnect);
+  //   };
+  // }, []);
 
   return (
     <Tabs
@@ -540,12 +545,12 @@ export function SpectatorCard() {
               <div className="absolute inset-0 overflow-y-auto">
                 <TabsContent value="live">
                   {/* Agent/Player Selection */}
-                  <PlayerSelectSidebar agents={agents} />
+                  {/* <PlayerSelectSidebar agents={agents} /> */}
                   {/* Main Content */}
                 </TabsContent>
                 <TabsContent value="replay">
                   {/* Replay Selection */}
-                  <ReplayLeaderboardSidebar replays={replays} />
+                  {/* <ReplayLeaderboardSidebar replays={replays} /> */}
                 </TabsContent>
               </div>
               <div className="absolute bottom-0 inset-x-0 h-6 bg-gradient-to-t from-card" />
@@ -553,12 +558,12 @@ export function SpectatorCard() {
             <StateView
               isLiveView={activeView == "live"}
               isLive={isLive}
-              reward={reward}
+              totalReward={totalReward}
               rank={rank}
               episodeLength={episodeLength}
               kills={kills}
-              land={land}
-              imgSrc={imgSrc}
+              land={landCaptured}
+              imgSrc={img}
             />
           </div>
         </CardContent>
