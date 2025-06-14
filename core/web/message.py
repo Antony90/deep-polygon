@@ -43,6 +43,9 @@ class Payload:
 
     def to_message(self) -> WsMessage:
         return WsMessage(type=self.type, payload=asdict(self))
+    
+
+
 
 
 
@@ -193,3 +196,10 @@ class TrainingProgress(Payload):
 
 # class PlayersUpdate(TypedDict):
 #     players: list[PlayerState]
+PAYLOAD_TYPES = [
+    MeanStatistics.type,
+    # LiveFrameData.type,
+    TrainingProgress.type,
+    # LeaderboardUpdate.type,
+    # GraphUpdate.type
+]
