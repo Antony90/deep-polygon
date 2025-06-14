@@ -65,7 +65,7 @@ class RenderManager:
         
         # TODO: optimize packet size
         buffer = BytesIO()
-        img.save(buffer, format="webp", lossless=False, exact=False, quality=5)
+        img.save(buffer, format="webp", lossless=True)
         img_bytes = buffer.getvalue()
         
         img.close()

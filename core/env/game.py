@@ -1,5 +1,5 @@
 from random import SystemRandom
-from typing import Optional
+from typing import Iterable, Optional
 
 from constants import DEFAULT_MAP_SIZE, Direction
 
@@ -60,8 +60,8 @@ class Game:
         area_change = 0
 
         # check kill conditions
-        killed = {}
-        killed_enemy = False # any enemy
+        killed = {} # Maps a killed player -> the player that killed them
+        killed_enemy = False # any enemy, this step
         if action != Direction.PAUSE:
             if player_has_trail and self.grid.get_block(player.pos) == player.id:
                 # entering own land, capture area
@@ -89,11 +89,12 @@ class Game:
 
                 if heads_collision or enemy.trail_has_block(player.pos, ignore_head=enemy == player):
                     # to introduce immortal bug: and (self.grid.get_block(enemy.pos) != enemy.id or not enemy_has_trail)
-                    if enemy.id not in killed:
+                    if enemy.id not in killed: # prevents overwriting the original killer (as per the loop order)
                         # player kills enemy
                         killed[enemy.id] = player.id
-                        player.kills += 1
                         killed_enemy = True
+                        if enemy != player: # only register stats if not kill self
+                            player.kills += 1
                         enemy.die()
                     if heads_collision and enemy_has_trail:
                         # enemy kills player
@@ -108,7 +109,7 @@ class Game:
         # player.trail_start_rel = player.rel_trail_start_yx()
 
         # head collision, too far from land
-        if player.id in killed :
+        if player.id in killed:
             player.die()
 
         player.before_state_and_reward(self, action, killed_enemy)
@@ -138,7 +139,7 @@ class Game:
             
         return True
     
-    def get_players(self):
+    def get_players(self) -> Iterable[Player]:
         return self.players.values()
     
     
