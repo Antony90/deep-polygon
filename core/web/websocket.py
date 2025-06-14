@@ -1,9 +1,10 @@
 import asyncio
+from dataclasses import asdict
 
 from train.render import CLIENT_FPS, RenderManager
 from fastapi import WebSocket
 
-from web.message import Payload
+from web.message import LiveFrameData, Payload
 
 
 class WebSocketHandler:
@@ -13,6 +14,10 @@ class WebSocketHandler:
 
         self.broadcast_payload_queue: asyncio.Queue[Payload] = asyncio.Queue()
         self._shutdown_event = asyncio.Event()
+
+        # Cache the latest payload of each type, to expose this to
+        # The REST API as a GET request endpoint
+        self._latest_payload_cache: dict[str, Payload] = dict()
 
     async def serve(self, websocket: WebSocket):
         # Continuous loop
@@ -39,7 +44,7 @@ class WebSocketHandler:
 
         `delay` (seconds) between each message.
         """
-        while True: # TODO: self.run var
+        while True:  # TODO: self.run var
             if not self.render_manager.empty(ws_client):
                 live_frame = await self.render_manager.get_next_state(ws_client)
                 msg = live_frame.to_message()
@@ -59,6 +64,7 @@ class WebSocketHandler:
         Can be called from a synchronous context. Will error if has a max size and is full
         """
         self.broadcast_payload_queue.put_nowait(payload)
+        self._set_latest_payload(payload)
 
     async def run_broadcast_loop(self):
         """
@@ -75,3 +81,22 @@ class WebSocketHandler:
 
     def stop_broadcast_loop(self):
         self._shutdown_event.set()
+
+    def _set_latest_payload(self, payload: Payload):
+        """
+        Update latest payload cache for the type.
+        """
+        if payload.type != LiveFrameData.type:
+            self._latest_payload_cache[payload.type] = payload
+
+    def get_latest_payloads(self, exclude_types=[LiveFrameData.type]):
+        return {
+            type: asdict(payload)
+            for type, payload in self._latest_payload_cache.items()
+            if type not in exclude_types
+        }
+        
+    def get_latest_payload(self, payload_type):
+        payload = self._latest_payload_cache[payload_type]
+        
+        return asdict(payload)
