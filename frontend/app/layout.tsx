@@ -25,7 +25,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const wsUrl = "ws://localhost:8000/ws";
 
   return (
     <html lang="en">
@@ -33,7 +32,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <StoreProvider initialState={{}}>
-          <WebSocketProvider url={wsUrl}>{children}</WebSocketProvider>
+          <WebSocketProvider>{children}</WebSocketProvider>
         </StoreProvider>
       </body>
     </html>

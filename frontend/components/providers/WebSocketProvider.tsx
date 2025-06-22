@@ -2,6 +2,7 @@
 import { setLiveFrame } from "@/lib/features/liveFrameSlice";
 import { setTrainingProgress } from "@/lib/features/trainingProgressSlice";
 import { useAppDispatch } from "@/lib/hooks";
+import { getWebSocketUrl } from "@/lib/utils";
 import { LiveFrame, WsMessage } from "@/types/message";
 import { useEffect, useRef, useState } from "react";
 
@@ -23,21 +24,15 @@ import { useEffect, useRef, useState } from "react";
  * Place <WebSocketProvider /> at the top level of your component tree
  * to ensure a single WebSocket connection shared throughout the app.
  */
-export default function WebSocketProvider({ url, children }: { url: string, children: React.ReactNode }) {
-  const dispatch = useAppDispatch();
+export default function WebSocketProvider({ children }: { children: React.ReactNode }) {
+  const wsUrl = getWebSocketUrl();
   
+  const dispatch = useAppDispatch();
   const wsRef = useRef<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
 
-  
-  // const setLatestFrame = (x: any) => {};
-  // const setTrainingProgress = (x: any) => {};
-  // const setMeanStatistics = (x: any) => {};
-  // const setLeaderboard = (x: any) => {};
-  // const updateGraphs = (x: any) => {};
-
   useEffect(() => {
-    wsRef.current = new WebSocket(url);
+    wsRef.current = new WebSocket(wsUrl);
     const ws = wsRef.current; // For simplicity
 
     ws.onopen = () => {
