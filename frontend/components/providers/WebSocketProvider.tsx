@@ -22,9 +22,14 @@ import { useEffect, useRef, useState } from "react";
  * Usage:
  * Place <WebSocketProvider /> at the top level of your component tree
  * to ensure a single WebSocket connection shared throughout the app.
-*/
+ */
 
 function getWebSocketUrl(path = "/ws"): string {
+  // Catch Server Side Rendering, we only care about client
+  if (typeof window === "undefined") {
+    return "";
+  }
+
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
   const hostname = window.location.hostname;
 
@@ -116,4 +121,3 @@ export default function WebSocketProvider({ children }: { children: React.ReactN
 
   return children;
 }
-
