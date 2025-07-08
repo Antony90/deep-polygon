@@ -2,7 +2,6 @@
 import { setLiveFrame } from "@/lib/features/liveFrameSlice";
 import { setTrainingProgress } from "@/lib/features/trainingProgressSlice";
 import { useAppDispatch } from "@/lib/hooks";
-import { getWebSocketUrl } from "@/lib/utils";
 import { LiveFrame, WsMessage } from "@/types/message";
 import { useEffect, useRef, useState } from "react";
 
@@ -23,7 +22,33 @@ import { useEffect, useRef, useState } from "react";
  * Usage:
  * Place <WebSocketProvider /> at the top level of your component tree
  * to ensure a single WebSocket connection shared throughout the app.
- */
+*/
+
+function getWebSocketUrl(path = "/ws"): string {
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  const hostname = window.location.hostname;
+
+  const isDevEnv =
+    hostname === "localhost" ||
+    hostname.startsWith("192.168.") ||
+    hostname.startsWith("10.") ||
+    hostname === "127.0.0.1";
+
+  if (isDevEnv) {
+    return `${protocol}://${hostname}:8000${path}`;
+  }
+
+  // Docker compose environment
+  if (hostname === "frontend") {
+    return `${protocol}://rl_backend:8000${path}`;
+  }
+
+  // Production
+  return `${protocol}://${hostname}${path}`;
+}
+
+
+
 export default function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const wsUrl = getWebSocketUrl();
   
