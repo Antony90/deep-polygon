@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import WebSocketProvider from "@/components/providers/WebSocketProvider";
 import StoreProvider from "@/components/providers/StoreProvider";
+import { getTrainingProgress } from "@/lib/api-client";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,7 +21,7 @@ export const metadata: Metadata = {
     "Real-time dashboard for deep reinforcement learning, featuring live interaction with agents and monitoring",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -31,7 +32,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <StoreProvider initialState={{}}>
+        <StoreProvider initialState={{
+          trainingProgress: await getTrainingProgress()
+        }}>
           <WebSocketProvider>{children}</WebSocketProvider>
         </StoreProvider>
       </body>

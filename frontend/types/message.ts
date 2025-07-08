@@ -1,3 +1,5 @@
+// Unfortunately we have to use python snake case
+
 export interface LiveFrame {
   img: string;
   reward: number;
@@ -14,8 +16,8 @@ export interface TrainingProgress {
   eta: string;
   rate: number;
   runtime: string;
-  gpu_util?: number;
-  cpu_util?: number;
+  gpu_util: number | null;
+  cpu_util: number | null;
   epsilon: number;
 }
 

@@ -54,7 +54,7 @@ const StatCard = ({ icon, label, value }: StatComponentProps) => (
   </div>
 );
 
-export function TrainingOverviewCard({ initialTrainingProgress }: { initialTrainingProgress: Promise<TrainingProgress> }) {
+export function TrainingOverviewCard() {
   const [paused, setPaused] = useState(false);
 
   const trainingProgress = useAppSelector(s => s.trainingProgress);
@@ -67,7 +67,7 @@ export function TrainingOverviewCard({ initialTrainingProgress }: { initialTrain
     gpu_util: gpuUtil,
     cpu_util: cpuUtil,
     epsilon,
-  } = trainingProgress ?? use(initialTrainingProgress);
+  } = trainingProgress;
 
   const seed = "12345";
   // const eta = paused ? "Paused" : "02:10:00";
